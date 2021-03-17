@@ -1,0 +1,44 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31025.194
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SB22 Auto Docker", "SB22 Auto Docker\SB22 Auto Docker.csproj", "{08AC1676-CD52-4613-8D40-8E15B2F53403}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SB22 Drone Hub", "SB22 Drone Hub\SB22 Drone Hub.csproj", "{2CD46F31-98DA-4F1D-84B3-26BD9BD60F0A}"
+EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "SB22 Drone Library", "SB22 Drone Library\SB22 Drone Library.shproj", "{56B8B9EA-1C0A-4846-ACBD-424F00088163}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SB22 Rammer Drone", "SB22 Rammer Drone\SB22 Rammer Drone.csproj", "{B01AAC44-B38A-44D7-83A2-AE644326B906}"
+EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "SB22 Script Helpers", "SB22 Script Helpers\SB22 Script Helpers.shproj", "{67AA7472-5D58-46C9-BFBA-9697B19F4D81}"
+EndProject
+Global
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		SB22 Drone Library\SB22 Drone Library.projitems*{08ac1676-cd52-4613-8d40-8e15b2f53403}*SharedItemsImports = 4
+		SB22 Script Helpers\SB22 Script Helpers.projitems*{08ac1676-cd52-4613-8d40-8e15b2f53403}*SharedItemsImports = 4
+		SB22 Drone Library\SB22 Drone Library.projitems*{2cd46f31-98da-4f1d-84b3-26bd9bd60f0a}*SharedItemsImports = 4
+		SB22 Script Helpers\SB22 Script Helpers.projitems*{2cd46f31-98da-4f1d-84b3-26bd9bd60f0a}*SharedItemsImports = 4
+		SB22 Drone Library\SB22 Drone Library.projitems*{56b8b9ea-1c0a-4846-acbd-424f00088163}*SharedItemsImports = 13
+		SB22 Script Helpers\SB22 Script Helpers.projitems*{67aa7472-5d58-46c9-bfba-9697b19f4d81}*SharedItemsImports = 13
+		SB22 Drone Library\SB22 Drone Library.projitems*{b01aac44-b38a-44d7-83a2-ae644326b906}*SharedItemsImports = 4
+		SB22 Script Helpers\SB22 Script Helpers.projitems*{b01aac44-b38a-44d7-83a2-ae644326b906}*SharedItemsImports = 4
+	EndGlobalSection
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{08AC1676-CD52-4613-8D40-8E15B2F53403}.Debug|x64.ActiveCfg = Debug|x64
+		{08AC1676-CD52-4613-8D40-8E15B2F53403}.Debug|x64.Build.0 = Debug|x64
+		{2CD46F31-98DA-4F1D-84B3-26BD9BD60F0A}.Debug|x64.ActiveCfg = Debug|x64
+		{2CD46F31-98DA-4F1D-84B3-26BD9BD60F0A}.Debug|x64.Build.0 = Debug|x64
+		{B01AAC44-B38A-44D7-83A2-AE644326B906}.Debug|x64.ActiveCfg = Debug|x64
+		{B01AAC44-B38A-44D7-83A2-AE644326B906}.Debug|x64.Build.0 = Debug|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6FD1912E-DDE0-45DA-A914-32736BBE5596}
+	EndGlobalSection
+EndGlobal
