@@ -20,18 +20,22 @@ using VRageMath;
 
 namespace Sb22.ScriptHelpers {
 
-	public class NavigationHelper {
+	/// <summary>
+	/// A general class for helping scripts navigate.
+	/// </summary>
+	public static class NavigationHelper {
 
 		/// <summary>
-		/// 
+		/// Use <paramref name="gyroscopes"/> to rotate the grid to the target direction, <paramref name="target"/>, given the current direction, <paramref name="current"/>.
 		/// </summary>
 		/// <param name="current">The target local vector.</param>
 		/// <param name="target">The current local vector.</param>
-		/// <param name="gyroscopes"></param>
+		/// <param name="gyroscopes">The collection of <see cref="IMyGyro"/>s to use to rotate the grid.</param>
+		/// <param name="percentage">The percentage of power for each <see cref="IMyGyro"/> to use.</param>
 		/// <remarks>
 		/// Math taken from https://forum.keenswh.com/threads/aligning-ship-to-planet-gravity.7373513/#post-1286885461.
 		/// </remarks>
-		public void RotateTo(Vector3 current, Vector3 target, ICollection<IMyGyro> gyroscopes, float percentage = 0.90f) {
+		public static void RotateTo(Vector3 current, Vector3 target, ICollection<IMyGyro> gyroscopes, float percentage = 0.90f) {
 
 			// Don't compute the same angle twice.
 			Dictionary<Base6Directions.Direction, float> angles = new Dictionary<Base6Directions.Direction, float>(6);
