@@ -9,7 +9,9 @@
     <Import_RootNamespace>Sb22.ScriptHelpers</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)ConsoleHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DirectionHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)NavigationHelper.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)RollingList.cs" />
   </ItemGroup>
 </Project>

@@ -27,7 +27,6 @@ namespace IngameScript {
 	/// </summary>
 	partial class Program : MyGridProgram {
 
-		IMyTextSurface TextSurface { get; }
 		ConsoleHelper Console { get; }
 
 		long RuntimeStartNs { get; set; }
@@ -74,9 +73,9 @@ namespace IngameScript {
 			ListenerDockAccept = IGC.RegisterBroadcastListener(Communicator.tagDockRequest);
 
 			// Get the main text surface of the programmable block.
-			TextSurface = Me.GetSurface(0);
-			TextSurface.ContentType = ContentType.TEXT_AND_IMAGE;
-			TextSurface.WriteText("Program initialized.\n");
+			Console = new ConsoleHelper(Me.GetSurface(0));
+			Console.WriteLine("Program initialized.");
+			Console.Apply();
 
 		}
 
@@ -101,11 +100,10 @@ namespace IngameScript {
 			// Send messages.
 			{
 				foreach(DockingDrone drone in DockingDrones) {
-					Quaternion rotation;
-					Me.Orientation.GetQuaternion(out rotation);
+					Quaternion rotation = Quaternion.CreateFromRotationMatrix(drone.Connector.CubeGrid.WorldMatrix);
 					var data = Communicator.MakeDockUpdateMessageData(Me.GetPosition(), rotation);
-					IGC.SendUnicastMessage(drone.Address, Communicator.tagDockUpdate, data);
-					MessagesOut++;
+					if(IGC.SendUnicastMessage(drone.Address, Communicator.tagDockUpdate, data)) MessagesOut++;
+					else continue;
 				}
 			}
 
@@ -161,6 +159,7 @@ namespace IngameScript {
 
 			}
 
+			Console.Apply();
 			Echo($"Total Messages: {MessagesIn:N0} in / {MessagesOut:N0} out.");
 			Echo($"Execution time was {CurrentRuntimeNs * 1e-6:N6}ms.");
 

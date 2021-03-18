@@ -28,9 +28,11 @@ namespace Sb22.ScriptHelpers {
 		private RollingList<string> Lines { get; }
 
 
-		public ConsoleHelper(IMyTextSurface textSurface, int maxLines) {
+		public ConsoleHelper(IMyTextSurface textSurface) {
 			TextSurface = textSurface;
-			Lines = new RollingList<string>(MaxLines = maxLines);
+			textSurface.FontSize = 0.95f;
+			textSurface.ContentType = ContentType.TEXT_AND_IMAGE;
+			Lines = new RollingList<string>(MaxLines = 11);
 		}
 
 

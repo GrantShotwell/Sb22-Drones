@@ -68,7 +68,7 @@ namespace Sb22.Drones {
 			upLocal = Vector3I.Zero;
 			direction = 0;
 
-			if(elements.Length != 5) return false;
+			if(elements.Length != 8) return false;
 			if(!float.TryParse(elements[0], out length)) return false;
 			int dir;
 			if(!int.TryParse(elements[0], out dir)) return false;
