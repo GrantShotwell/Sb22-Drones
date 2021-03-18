@@ -28,6 +28,7 @@ namespace IngameScript {
 	partial class Program : MyGridProgram {
 
 		IMyTextSurface TextSurface { get; }
+		ConsoleHelper Console { get; }
 
 		long RuntimeStartNs { get; set; }
 		long CurrentRuntimeNs => DateTime.Now.Ticks - RuntimeStartNs;

@@ -77,8 +77,8 @@ namespace IngameScript {
 		/// that describes where the update came from.</param>
 		public void Main(string argument, UpdateType updateSource) {
 
-			Echo($"Last execution took {Runtime.LastRunTimeMs:N6}ms.\n\n");
-			Echo($"Current update source: {Convert.ToString((int)updateSource, 2).PadLeft(10, '0')}\n");
+			Echo($"Last execution took {Runtime.LastRunTimeMs:N6}ms.");
+			Echo($"Current update source: {Convert.ToString((int)updateSource, 2).PadLeft(10, '0')}");
 
 			bool error = false;
 
@@ -150,6 +150,7 @@ namespace IngameScript {
 							GridTerminalSystem.GetBlocksOfType(Thrusters, thruster => thruster.CubeGrid == Me.CubeGrid);
 
 							TargetConnectorExists = true;
+							Runtime.UpdateFrequency = UpdateFrequency.Update100;
 							TargetConnectorHalfLength = length / 2f;
 							TargetConnectorLocalPosition = normal;
 							TargetConnectorForward = Base6Directions.GetVector(direction);
@@ -204,19 +205,16 @@ namespace IngameScript {
 
 						Connector.Connect();
 						TargetConnectorExists = false;
-						Runtime.UpdateFrequency = UpdateFrequency.None;
+						Runtime.UpdateFrequency = UpdateFrequency.Update100;
 						TextSurface.WriteText("Finished docking.\n");
 
 					} else if(Connector.Status == MyShipConnectorStatus.Connected) {
 
 						TargetConnectorExists = false;
-						Runtime.UpdateFrequency = UpdateFrequency.None;
+						Runtime.UpdateFrequency = UpdateFrequency.Update100;
 						TextSurface.WriteText("Finished docking.\n");
 
 					} else if(TargetConnectorExists) {
-
-						//TextSurface.WriteText("Docking.");
-						//TextSurface.WriteText(DefaultEcho);
 
 						// Rotate to connect.
 						Quaternion rotation;
