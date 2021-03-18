@@ -27,6 +27,8 @@ namespace IngameScript {
 	/// </summary>
 	partial class Program : MyGridProgram {
 
+		IMyTextSurface TextSurface { get; }
+
 		IMyRemoteControl Control { get; set; }
 		IMyShipConnector Connector { get; set; }
 		Vector3D ControlToConnector => Connector.Position - Control.Position;
@@ -46,6 +48,8 @@ namespace IngameScript {
 		double ConnectDistance => TargetConnectorHalfLength + (Base6Directions.GetIntVector(Base6Directions.Direction.Forward) * Connector.Max).AbsMax();
 		double ApproachDistance => ConnectDistance + Me.CubeGrid.WorldVolume.Radius * 1.5;
 
+		string DefaultEcho { get; set; }
+
 
 		/// <summary>
 		/// The one and only constructor.
@@ -54,6 +58,11 @@ namespace IngameScript {
 
 			// Set update frequency.
 			Runtime.UpdateFrequency = UpdateFrequency.None;
+
+			// Get the main text surface of the programmable block.
+			TextSurface = Me.GetSurface(0);
+			TextSurface.ContentType = ContentType.TEXT_AND_IMAGE;
+			TextSurface.WriteText("Program initialized.\n");
 
 		}
 
@@ -68,44 +77,62 @@ namespace IngameScript {
 		/// that describes where the update came from.</param>
 		public void Main(string argument, UpdateType updateSource) {
 
-			Echo($"Last execution took {Runtime.LastRunTimeMs:N6}ms.\n");
+			Echo($"Last execution took {Runtime.LastRunTimeMs:N6}ms.\n\n");
+			Echo($"Current update source: {Convert.ToString((int)updateSource, 2).PadLeft(10, '0')}\n");
+
+			bool error = false;
+
+			if(Connector == null) {
+				var connectors = new List<IMyShipConnector>();
+				GridTerminalSystem.GetBlocksOfType(connectors, _connector => _connector.CubeGrid == Me.CubeGrid);
+				if(connectors.Count == 0) {
+					Echo("Cannot find a connector to use.");
+					error = true;
+				} else Connector = connectors[0];
+			}
+
+			if(Control == null) {
+				var controls = new List<IMyRemoteControl>();
+				GridTerminalSystem.GetBlocksOfType(controls, _control => _control.CubeGrid == Me.CubeGrid);
+				if(controls.Count == 0) {
+					Echo("Cannot find a remote control to use.");
+					error = true;
+				} else Control = controls[0];
+			}
+
+			if(error) return;
 
 			IMyRemoteControl control = Control;
 			IMyShipConnector connector = Connector;
 
+			switch(argument) {
 
-			if((updateSource | UpdateType.Once) != 0) {
+				case "undock":
 
-				switch(argument) {
+					if(Connector.Status == MyShipConnectorStatus.Connected) {
+						TextSurface.WriteText("Undocking command recieved.\n", true);
+					}
 
-					case "undock":
+					break;
 
-						if(Connector.Status == MyShipConnectorStatus.Connected) {
-							
-						}
+				case "dock":
 
-						break;
+					if(Connector.Status != MyShipConnectorStatus.Connected) {
+						var data = Communicator.MakeDockRequestMessageData(Connector.GetPosition());
+						IGC.SendBroadcastMessage(Communicator.tagDockRequest, data, TransmissionDistance.TransmissionDistanceMax);
+						TextSurface.WriteText("Docking request sent. Waiting for reply...\n", true);
+					}
 
-					case "dock":
-
-						if(Connector.Status != MyShipConnectorStatus.Connected) {
-							var data = Communicator.MakeDockRequestMessageData(Connector.GetPosition());
-							IGC.SendBroadcastMessage(Communicator.tagDockRequest, data, TransmissionDistance.TransmissionDistanceMax);
-							Runtime.UpdateFrequency = UpdateFrequency.Update100;
-							Echo("Docking request sent. Waiting for reply...");
-						}
-
-						break;
-
-				}
+					break;
 
 			}
-			
+
 			if((updateSource | UpdateType.IGC) != 0) {
 
 				while(IGC.UnicastListener.HasPendingMessage) {
 
 					MyIGCMessage message = IGC.UnicastListener.AcceptMessage();
+
 					switch(message.Tag) {
 
 						case Communicator.tagDockAccept: {
@@ -114,7 +141,8 @@ namespace IngameScript {
 							Vector3 normal;
 							Vector3I up;
 							float length;
-							if(!Communicator.ParseDockAcceptMessageData(message.As<string>(), out length, out direction, out normal, out up)) {
+							if(!Communicator.ParseDockAcceptMessageData(message.Data as string, out length, out direction, out normal, out up)) {
+								TextSurface.WriteText("Failed to parse dock accept message.\n", true);
 								break;
 							}
 
@@ -126,7 +154,7 @@ namespace IngameScript {
 							TargetConnectorLocalPosition = normal;
 							TargetConnectorForward = Base6Directions.GetVector(direction);
 							TargetConnectorUp = up;
-							Echo("Docking order recieved. Waiting for reply...");
+							TextSurface.WriteText("Docking request accepted. Waiting for update...\n", true);
 							break;
 
 						}
@@ -135,26 +163,31 @@ namespace IngameScript {
 
 							Vector3D gridPosition;
 							Quaternion gridRotation;
-							if(!Communicator.ParseDockUpdateMessageData(message.As<string>(), out gridPosition, out gridRotation)) {
+							if(!Communicator.ParseDockUpdateMessageData(message.Data as string, out gridPosition, out gridRotation)) {
+								TextSurface.WriteText("Failed to parse dock update message.\n", true);
 								break;
 							}
 
 							if(TargetConnectorExists) {
 
+								Runtime.UpdateFrequency = UpdateFrequency.Update1;
 								TargetConnectorWorldRotation = gridRotation;
 								TargetConnectorWorldPosition = gridPosition + gridRotation * TargetConnectorLocalPosition;
 
-								Echo("Docking order recieved. Initiating docking procedure.");
+								TextSurface.WriteText("Docking order recieved. Initiating docking procedure.\n", true);
 								break;
 
 							} else {
 
-								Echo("Recieved dock update before the dock order.");
+								TextSurface.WriteText("Recieved dock update before the dock order.\n", true);
 								break;
 
 							}
 
 						}
+
+						default:
+							break;
 
 					}
 
@@ -168,19 +201,33 @@ namespace IngameScript {
 
 					// Connect if possible.
 					if(Connector.Status == MyShipConnectorStatus.Connectable) {
+
 						Connector.Connect();
 						TargetConnectorExists = false;
-						Echo("Finished docking.");
-					} else if(Connector.Status == MyShipConnectorStatus.Connected) {
-						TargetConnectorExists = false;
-						Echo("Finished docking.");
-					}
+						Runtime.UpdateFrequency = UpdateFrequency.None;
+						TextSurface.WriteText("Finished docking.\n");
 
-					// Rotate to connect.
-					Vector3 target = TargetConnectorWorldRotation * TargetConnectorUp;
-					Quaternion rotation;
-					Connector.Orientation.GetQuaternion(out rotation);
-					Vector3 current = rotation * Base6Directions.GetVector(Connector.Orientation.Up);
+					} else if(Connector.Status == MyShipConnectorStatus.Connected) {
+
+						TargetConnectorExists = false;
+						Runtime.UpdateFrequency = UpdateFrequency.None;
+						TextSurface.WriteText("Finished docking.\n");
+
+					} else if(TargetConnectorExists) {
+
+						//TextSurface.WriteText("Docking.");
+						//TextSurface.WriteText(DefaultEcho);
+
+						// Rotate to connect.
+						Quaternion rotation;
+						Connector.Orientation.GetQuaternion(out rotation);
+						Vector3 current = rotation * Base6Directions.GetVector(Connector.Orientation.Up);
+						NavigationHelper.RotateTo(current, TargetConnectorWorldRotation * TargetConnectorUp, Gyroscopes);
+
+						// Move to connect.
+						NavigationHelper.MoveToLocal(TargetConnectorWorldPosition - rotation * Connector.Position, Thrusters);
+
+					}
 
 				}
 

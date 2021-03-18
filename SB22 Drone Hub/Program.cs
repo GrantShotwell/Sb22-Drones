@@ -27,15 +27,24 @@ namespace IngameScript {
 	/// </summary>
 	partial class Program : MyGridProgram {
 
+		IMyTextSurface TextSurface { get; }
+
 		long RuntimeStartNs { get; set; }
 		long CurrentRuntimeNs => DateTime.Now.Ticks - RuntimeStartNs;
 		long TargetRuntimeNs { get; } = (long)1e6 / 10;
+
+		ulong MessagesOut { get; set; } = 0;
+		ulong MessagesIn { get; set; } = 0;
+
+		IMyBroadcastListener ListenerDockAccept { get; }
 
 		Dictionary<IMyGridTerminalSystem, List<IMyProgrammableBlock>> Drones { get; }
 		IEnumerable<MyIGCMessage> QueuedMessages {
 			get {
 				while(IGC.UnicastListener.HasPendingMessage)
 					yield return IGC.UnicastListener.AcceptMessage();
+				while(ListenerDockAccept.HasPendingMessage)
+					yield return ListenerDockAccept.AcceptMessage();
 			}
 		}
 
@@ -43,7 +52,7 @@ namespace IngameScript {
 		List<IMyShipConnector> Connectors {
 			get {
 				GridTerminalSystem.GetBlocksOfType(connectors,
-					connector => connector.Name.Contains("Dock"));
+					connector => connector.CubeGrid == Me.CubeGrid);
 				return connectors;
 			}
 		}
@@ -61,7 +70,12 @@ namespace IngameScript {
 			Runtime.UpdateFrequency = UpdateFrequency.Update100;
 
 			// Set broadcast listeners.
-			IGC.RegisterBroadcastListener(Communicator.tagDockRequest);
+			ListenerDockAccept = IGC.RegisterBroadcastListener(Communicator.tagDockRequest);
+
+			// Get the main text surface of the programmable block.
+			TextSurface = Me.GetSurface(0);
+			TextSurface.ContentType = ContentType.TEXT_AND_IMAGE;
+			TextSurface.WriteText("Program initialized.\n");
 
 		}
 
@@ -77,28 +91,27 @@ namespace IngameScript {
 		public void Main(string argument, UpdateType updateSource) {
 
 			Echo($"ID: {Me.EntityId}");
+			Echo($"Current update source: {Convert.ToString((int)updateSource, 2).PadLeft(10, '0')}");
 			RuntimeStartNs = DateTime.Now.Ticks;
 			List<IMyShipConnector> connectors = null;
 
 			// TODO: Cancel dockings that take too long.
 
 			// Send messages.
-			int messagesSent = 0;
 			{
 				foreach(DockingDrone drone in DockingDrones) {
 					Quaternion rotation;
 					Me.Orientation.GetQuaternion(out rotation);
 					var data = Communicator.MakeDockUpdateMessageData(Me.GetPosition(), rotation);
 					IGC.SendUnicastMessage(drone.Address, Communicator.tagDockUpdate, data);
+					MessagesOut++;
 				}
 			}
 
 			// Recieve messages.
-			int messagesRecieved = 0, messagesRecognized = 0, messagesSuccess = 0;
 			foreach(MyIGCMessage message in QueuedMessages) {
-				messagesRecieved++;
-				messagesRecognized++;
 
+				MessagesIn++;
 				switch(message.Tag) {
 
 					case Communicator.tagDockRequest: {
@@ -106,7 +119,8 @@ namespace IngameScript {
 						// Find closest connector.
 						if(connectors == null) connectors = Connectors;
 						Vector3D location;
-						if(!Communicator.ParseDockRequestMessageData(message.As<string>(), out location)) break;
+						if(!Communicator.ParseDockRequestMessageData(message.Data as string, out location)) break;
+
 						IMyShipConnector closest = null;
 						double distanceSquared = double.PositiveInfinity;
 						foreach(IMyShipConnector connector in connectors) {
@@ -120,6 +134,10 @@ namespace IngameScript {
 							}
 						}
 
+						if(closest == null) {
+							break;
+						}
+
 						// Mark connector as used.
 						TakenConnectors.Add(closest);
 						DockingDrones.Add(new DockingDrone(message.Source, closest));
@@ -127,15 +145,14 @@ namespace IngameScript {
 						// Send message back.
 						float length = (Base6Directions.GetIntVector(Base6Directions.Direction.Forward) * closest.Max).AbsMax();
 						var data = Communicator.MakeDockAcceptMessageData(length, closest.Orientation.Forward, closest.Position, Base6Directions.GetIntVector(closest.Orientation.Up));
-						IGC.SendUnicastMessage(message.Source, Communicator.tagDockAccept, data);
-						messagesSuccess++;
-						break;
+						if(IGC.SendUnicastMessage(message.Source, Communicator.tagDockAccept, data)) {
+							MessagesOut++;
+							break;
+						} else {
+							break;
+						}
 
 					}
-
-					default:
-						messagesRecognized--;
-						break;
 
 				}
 
@@ -143,7 +160,7 @@ namespace IngameScript {
 
 			}
 
-			Echo($"Sent {messagesSent} messages and recieved {messagesSuccess}/{messagesRecognized}/{messagesRecieved} messages.");
+			Echo($"Total Messages: {MessagesIn:N0} in / {MessagesOut:N0} out.");
 			Echo($"Execution time was {CurrentRuntimeNs * 1e-6:N6}ms.");
 
 		}

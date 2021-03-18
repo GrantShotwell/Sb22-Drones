@@ -26,7 +26,7 @@ namespace Sb22.ScriptHelpers {
 	public static class NavigationHelper {
 
 		/// <summary>
-		/// Use <paramref name="gyroscopes"/> to rotate the grid to the target direction, <paramref name="target"/>, given the current direction, <paramref name="current"/>.
+		/// Uses <paramref name="gyroscopes"/> to rotate the grid to the target direction, <paramref name="target"/>, given the current direction, <paramref name="current"/>.
 		/// </summary>
 		/// <param name="current">The target local vector.</param>
 		/// <param name="target">The current local vector.</param>
@@ -77,6 +77,18 @@ namespace Sb22.ScriptHelpers {
 				gyroscope.GyroOverride = true;
 
 			}
+
+		}
+
+		/// <summary>
+		/// Uses <paramref name="thrusters"/> to move the grid along <paramref name="vector"/>.
+		/// </summary>
+		/// <param name="vector">The direction and magnitude to move the grid.</param>
+		/// <param name="thrusters">The collection of <see cref="IMyGyro"/>s to use to move the grid.</param>
+		/// <param name="percentage">The percentage of power for each <see cref="IMyThrust"/> to use.</param>
+		public static void MoveToLocal(Vector3D vector, ICollection<IMyThrust> thrusters, float percentage = 1.00f) {
+
+
 
 		}
 
