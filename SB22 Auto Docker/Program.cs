@@ -217,12 +217,14 @@ namespace IngameScript {
 					} else if(TargetConnectorExists) {
 
 						// Rotate to connect.
-						Quaternion rotation = Quaternion.CreateFromRotationMatrix(Connector.CubeGrid.WorldMatrix);
-						Vector3 current = rotation * Base6Directions.GetVector(Connector.Orientation.Up);
-						NavigationHelper.RotateTo(current, TargetConnectorWorldRotation * TargetConnectorUp, Gyroscopes, 0.50f);
+						Quaternion current = Quaternion.CreateFromRotationMatrix(Connector.CubeGrid.WorldMatrix);
+						Quaternion target = Quaternion.CreateFromForwardUp(Vector3.Forward, Vector3.Up);
+						string debug;
+						NavigationHelper.RotateTo(current, target, Gyroscopes, out debug);
+						Echo(debug);
 
 						// Move to connect.
-						NavigationHelper.MoveToLocal(TargetConnectorWorldPosition - rotation * Connector.Position, Thrusters);
+						NavigationHelper.MoveToLocal(TargetConnectorWorldPosition - current * Connector.Position, Thrusters);
 
 					}
 

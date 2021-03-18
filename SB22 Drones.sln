@@ -13,12 +13,16 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SB22 Rammer Drone", "SB22 R
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "SB22 Script Helpers", "SB22 Script Helpers\SB22 Script Helpers.shproj", "{67AA7472-5D58-46C9-BFBA-9697B19F4D81}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Navigation Tester", "Navigation Tester\Navigation Tester.csproj", "{46C8E6F0-5576-4A75-AD40-6E50F108261F}"
+EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		SB22 Drone Library\SB22 Drone Library.projitems*{08ac1676-cd52-4613-8d40-8e15b2f53403}*SharedItemsImports = 4
 		SB22 Script Helpers\SB22 Script Helpers.projitems*{08ac1676-cd52-4613-8d40-8e15b2f53403}*SharedItemsImports = 4
 		SB22 Drone Library\SB22 Drone Library.projitems*{2cd46f31-98da-4f1d-84b3-26bd9bd60f0a}*SharedItemsImports = 4
 		SB22 Script Helpers\SB22 Script Helpers.projitems*{2cd46f31-98da-4f1d-84b3-26bd9bd60f0a}*SharedItemsImports = 4
+		SB22 Drone Library\SB22 Drone Library.projitems*{46c8e6f0-5576-4a75-ad40-6e50f108261f}*SharedItemsImports = 4
+		SB22 Script Helpers\SB22 Script Helpers.projitems*{46c8e6f0-5576-4a75-ad40-6e50f108261f}*SharedItemsImports = 4
 		SB22 Drone Library\SB22 Drone Library.projitems*{56b8b9ea-1c0a-4846-acbd-424f00088163}*SharedItemsImports = 13
 		SB22 Script Helpers\SB22 Script Helpers.projitems*{67aa7472-5d58-46c9-bfba-9697b19f4d81}*SharedItemsImports = 13
 		SB22 Drone Library\SB22 Drone Library.projitems*{b01aac44-b38a-44d7-83a2-ae644326b906}*SharedItemsImports = 4
@@ -34,6 +38,8 @@ Global
 		{2CD46F31-98DA-4F1D-84B3-26BD9BD60F0A}.Debug|x64.Build.0 = Debug|x64
 		{B01AAC44-B38A-44D7-83A2-AE644326B906}.Debug|x64.ActiveCfg = Debug|x64
 		{B01AAC44-B38A-44D7-83A2-AE644326B906}.Debug|x64.Build.0 = Debug|x64
+		{46C8E6F0-5576-4A75-AD40-6E50F108261F}.Debug|x64.ActiveCfg = Debug|x64
+		{46C8E6F0-5576-4A75-AD40-6E50F108261F}.Debug|x64.Build.0 = Debug|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
