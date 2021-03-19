@@ -121,7 +121,7 @@ namespace IngameScript {
 						var data = Communicator.MakeDockRequestMessageData(Connector.GetPosition());
 						IGC.SendBroadcastMessage(Communicator.tagDockRequest, data, TransmissionDistance.TransmissionDistanceMax);
 						Console.WriteLine("Docking request sent. Waiting for reply.");
-						Runtime.UpdateFrequency = UpdateFrequency.Update100;
+						Runtime.UpdateFrequency = UpdateFrequency.Update10;
 					}
 
 					break;
@@ -216,12 +216,10 @@ namespace IngameScript {
 
 					} else if(TargetConnectorExists) {
 
-						Echo($"{TargetConnectorWorldRotation}");
-
 						// Rotate to connect.
-						Quaternion current = Quaternion.CreateFromRotationMatrix(control.WorldMatrix);
+						Quaternion current = Quaternion.CreateFromRotationMatrix(Me.CubeGrid.WorldMatrix);
 						Quaternion target = TargetConnectorWorldRotation;
-						NavigationHelper.RotateTo(current, target, Gyroscopes);
+						NavigationHelper.RotateTo(current, target, control, Gyroscopes, Echo);
 
 						// Move to connect.
 						NavigationHelper.MoveToLocal(TargetConnectorWorldPosition - current * Connector.Position, Thrusters);

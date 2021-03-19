@@ -76,9 +76,9 @@ namespace Sb22.Drones {
 			if(!float.TryParse(elements[1], out positionLocal.X)) return false;
 			if(!float.TryParse(elements[2], out positionLocal.Y)) return false;
 			if(!float.TryParse(elements[3], out positionLocal.Z)) return false;
-			if(!int.TryParse(elements[1], out upLocal.X)) return false;
-			if(!int.TryParse(elements[2], out upLocal.Y)) return false;
-			if(!int.TryParse(elements[3], out upLocal.Z)) return false;
+			if(!int.TryParse(elements[4], out upLocal.X)) return false;
+			if(!int.TryParse(elements[5], out upLocal.Y)) return false;
+			if(!int.TryParse(elements[6], out upLocal.Z)) return false;
 			return true;
 
 		}
@@ -103,10 +103,10 @@ namespace Sb22.Drones {
 			if(!double.TryParse(elements[0], out gridPosition.X)) return false;
 			if(!double.TryParse(elements[1], out gridPosition.Y)) return false;
 			if(!double.TryParse(elements[2], out gridPosition.Z)) return false;
-			if(!float.TryParse(elements[0], out gridRotation.X)) return false;
-			if(!float.TryParse(elements[1], out gridRotation.Y)) return false;
-			if(!float.TryParse(elements[2], out gridRotation.Z)) return false;
-			if(!float.TryParse(elements[2], out gridRotation.W)) return false;
+			if(!float.TryParse(elements[3], out gridRotation.X)) return false;
+			if(!float.TryParse(elements[4], out gridRotation.Y)) return false;
+			if(!float.TryParse(elements[5], out gridRotation.Z)) return false;
+			if(!float.TryParse(elements[6], out gridRotation.W)) return false;
 			return true;
 
 		}

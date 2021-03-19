@@ -32,14 +32,17 @@ namespace Sb22.ScriptHelpers {
 		/// <param name="target">The current <see cref="Quaternion"/>.</param>
 		/// <param name="gyroscopes">The collection of <see cref="IMyGyro"/>s to use to rotate the grid.</param>
 		/// <remarks>
-		/// Original by <see href="https://github.com/Whiplash141">Josh 'Whiplash141'</see>, re-written by <see href="https://github.com/SonicBlue22">Grant Shotwell</see>.
+		/// Original by <see href="https://github.com/Whiplash141">Josh 'Whiplash141'</see>, adapted by <see href="https://github.com/SonicBlue22">Grant Shotwell</see>.
 		/// </remarks>
-		public static void RotateTo(Quaternion current, Quaternion target, ICollection<IMyGyro> gyroscopes) {
+		public static void RotateTo(Quaternion current, Quaternion target, IMyShipController control, ICollection<IMyGyro> gyroscopes, Action<string> echo) {
 
 			if(Quaternion.IsZero(current)) return;
 			current.Normalize();
 			if(Quaternion.IsZero(target)) return;
 			target.Normalize();
+
+			echo(current.ToString("N2"));
+			echo(target.ToString("N2"));
 
 			Quaternion inverse = Quaternion.Inverse(current);
 			Vector3 targetRt = inverse * target.Right;
@@ -52,8 +55,8 @@ namespace Sb22.ScriptHelpers {
 			matrix.Up = targetUp;
 
 			Vector3 axis = new Vector3(matrix.M23 - matrix.M32, matrix.M31 - matrix.M13, matrix.M12 - matrix.M21);
-			double trace = matrix.M11 + matrix.M22 + matrix.M33;
-			float angle = (float)Math.Acos(MathHelper.Clamp((trace - 1) * 0.5, -1, 1)) / (float)Math.PI;
+			float trace = matrix.M11 + matrix.M22 + matrix.M33;
+			float angle = (float)Math.Acos(MathHelper.Clamp((trace - 1f) * 0.5f, -1f, 1f)) / (float)Math.PI;
 
 			float yaw, pitch, roll;
 			if(Vector3.IsZero(axis)) {
@@ -73,9 +76,9 @@ namespace Sb22.ScriptHelpers {
 
 				Vector3 rot = Vector3.TransformNormal(rotation, Matrix.Transpose(gyroscope.WorldMatrix));
 
-				gyroscope.Pitch = rot.X * gyroscope.GetMaximum<float>("Pitch");
-				gyroscope.Yaw = rot.Y * gyroscope.GetMaximum<float>("Yaw");
-				gyroscope.Roll = rot.Z * gyroscope.GetMaximum<float>("Roll");
+				gyroscope.Pitch = rot.X;
+				gyroscope.Yaw = rot.Y;
+				gyroscope.Roll = rot.Z;
 				gyroscope.GyroOverride = true;
 
 			}

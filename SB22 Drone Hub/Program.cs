@@ -67,7 +67,7 @@ namespace IngameScript {
 		public Program() {
 
 			// Set update frequency.
-			Runtime.UpdateFrequency = UpdateFrequency.Update100;
+			Runtime.UpdateFrequency = UpdateFrequency.Update1;
 
 			// Set broadcast listeners.
 			ListenerDockAccept = IGC.RegisterBroadcastListener(Communicator.tagDockRequest);
@@ -92,6 +92,7 @@ namespace IngameScript {
 
 			Echo($"ID: {Me.EntityId}");
 			Echo($"Current update source: {Convert.ToString((int)updateSource, 2).PadLeft(10, '0')}");
+			Echo($"Last execution took {Runtime.LastRunTimeMs:N6}ms.");
 			RuntimeStartNs = DateTime.Now.Ticks;
 			List<IMyShipConnector> connectors = null;
 
@@ -161,7 +162,6 @@ namespace IngameScript {
 
 			Console.Apply();
 			Echo($"Total Messages: {MessagesIn:N0} in / {MessagesOut:N0} out.");
-			Echo($"Execution time was {CurrentRuntimeNs * 1e-6:N6}ms.");
 
 		}
 

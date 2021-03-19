@@ -40,7 +40,7 @@ namespace IngameScript {
 
 			Quaternion current = Quaternion.CreateFromRotationMatrix(Me.CubeGrid.WorldMatrix);
 			Quaternion target = Quaternion.CreateFromForwardUp(Vector3.Forward, Vector3.Up);
-			NavigationHelper.RotateTo(current, target, gyroscopes);
+			NavigationHelper.RotateTo(current, target, control, gyroscopes, Echo);
 
 		}
 
