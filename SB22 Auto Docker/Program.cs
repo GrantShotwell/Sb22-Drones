@@ -216,6 +216,8 @@ namespace IngameScript {
 
 					} else if(TargetConnectorExists) {
 
+						Echo($"{TargetConnectorWorldRotation}");
+
 						// Rotate to connect.
 						Quaternion current = Quaternion.CreateFromRotationMatrix(control.WorldMatrix);
 						Quaternion target = TargetConnectorWorldRotation;

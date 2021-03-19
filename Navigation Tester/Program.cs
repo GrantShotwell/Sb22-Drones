@@ -38,8 +38,8 @@ namespace IngameScript {
 			GridTerminalSystem.GetBlocksOfType(controls);
 			IMyRemoteControl control = controls[0];
 
-			Quaternion current = Quaternion.CreateFromRotationMatrix(control.WorldMatrix);
-			Quaternion target = Quaternion.CreateFromForwardUp(Vector3.Backward, Vector3.Up);
+			Quaternion current = Quaternion.CreateFromRotationMatrix(Me.CubeGrid.WorldMatrix);
+			Quaternion target = Quaternion.CreateFromForwardUp(Vector3.Forward, Vector3.Up);
 			NavigationHelper.RotateTo(current, target, gyroscopes);
 
 		}
