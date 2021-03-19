@@ -26,37 +26,29 @@ namespace Sb22.ScriptHelpers {
 	public static class NavigationHelper {
 
 		/// <summary>
-		/// Uses <paramref name="gyroscopes"/> to rotate the grid to the target direction, <paramref name="target"/>, given the current direction, <paramref name="current"/>.
+		/// Uses <paramref name="gyroscopes"/> to rotate the grid to the target <see cref="Quaternion"/>, <paramref name="target"/>, given the current <see cref="Quaternion"/>, <paramref name="current"/>.
 		/// </summary>
-		/// <param name="current">The target world vector.</param>
-		/// <param name="target">The current world vector.</param>
+		/// <param name="current">The target <see cref="Quaternion"/>.</param>
+		/// <param name="target">The current <see cref="Quaternion"/>.</param>
 		/// <param name="gyroscopes">The collection of <see cref="IMyGyro"/>s to use to rotate the grid.</param>
 		/// <remarks>
 		/// Made by Grant Shotwell (https://github.com/SonicBlue22).
 		/// </remarks>
-		public static void RotateTo(Quaternion current, Quaternion target, ICollection<IMyGyro> gyroscopes, out string debug) {
-
-			#region my failures
-			StringBuilder debugBuilder = new StringBuilder();
-			Quaternion difference = current * Quaternion.Inverse(target);
+		public static void RotateTo(Quaternion current, Quaternion target, ICollection<IMyGyro> gyroscopes) {
 
 			target.Normalize();
 			current.Normalize();
 
 			// Axis of the current rotation.
-			Vector3D targetX = target * new Vector3(1, 0, 0);
-			Vector3D targetY = target * new Vector3(0, 1, 0);
-			Vector3D targetZ = target * new Vector3(0, 0, 1);
+			Vector3D currentX = current * new Vector3(1, 0, 0);
+			Vector3D currentY = current * new Vector3(0, 1, 0);
+			Vector3D currentZ = current * new Vector3(0, 0, 1);
 
 			// Rotate the whole system so that the 'current' axis are now the world axis.
-			var inverse = Quaternion.Inverse(current);
-			Vector3D alignedX = inverse * targetX;
-			Vector3D alignedY = inverse * targetY;
-			Vector3D alignedZ = inverse * targetZ;
-
-			debugBuilder.Append($"Aligned X: {alignedX.ToString("N2")}\n");
-			debugBuilder.Append($"Aligned Y: {alignedY.ToString("N2")}\n");
-			debugBuilder.Append($"Aligned Z: {alignedZ.ToString("N2")}\n");
+			var inverse = Quaternion.Inverse(target);
+			Vector3D alignedX = inverse * currentX;
+			Vector3D alignedY = inverse * currentY;
+			Vector3D alignedZ = inverse * currentZ;
 
 			// Each world axis has two perpendicular planes that go along it.
 			// Planes can be defined by their normal vector and any point on the plane.
@@ -74,107 +66,58 @@ namespace Sb22.ScriptHelpers {
 			// a = arcsin( |w| / (1+|w|) )
 
 			// Goal of gyroscopes: The aligned X axis needs to be rotated towards the world X/Y plane and the X/Z plane.
-			double x_xy = Math.Asin(Math.Abs(alignedX.Z) / (1 + Math.Abs(alignedX.Z))) * Math.Sign(alignedX.Z);
-			double x_xz = Math.Asin(Math.Abs(alignedX.Y) / (1 + Math.Abs(alignedX.Y))) * Math.Sign(alignedX.Y);
+			double x_xy = Math.Asin(Math.Abs(alignedX.Z) / (1 + Math.Abs(alignedX.Z))) * Math.Sign(alignedX.Z) / Math.PI;
+			double x_xz = Math.Asin(Math.Abs(alignedX.Y) / (1 + Math.Abs(alignedX.Y))) * Math.Sign(alignedX.Y) / Math.PI;
 
 			// Goal of gyroscopes: The aligned Y axis needs to be rotated towards the world Y/Z plane and the X/Y plane.
-			double y_yz = Math.Asin(Math.Abs(alignedY.X) / (1 + Math.Abs(alignedY.X))) * Math.Sign(alignedY.X);
-			double y_xy = Math.Asin(Math.Abs(alignedY.Z) / (1 + Math.Abs(alignedY.Z))) * Math.Sign(alignedY.Z);
+			double y_yz = Math.Asin(Math.Abs(alignedY.X) / (1 + Math.Abs(alignedY.X))) * Math.Sign(alignedY.X) / Math.PI;
+			double y_xy = Math.Asin(Math.Abs(alignedY.Z) / (1 + Math.Abs(alignedY.Z))) * Math.Sign(alignedY.Z) / Math.PI;
 
 			// Goal of gyroscopes: The aligned Z axis needs to be rotated towards the world X/Z plane and the Y/Z plane.
-			double z_xz = Math.Asin(Math.Abs(alignedZ.Y) / (1 + Math.Abs(alignedZ.Y))) * Math.Sign(alignedZ.Y);
-			double z_yz = Math.Asin(Math.Abs(alignedZ.X) / (1 + Math.Abs(alignedZ.X))) * Math.Sign(alignedZ.X);
+			double z_xz = Math.Asin(Math.Abs(alignedZ.Y) / (1 + Math.Abs(alignedZ.Y))) * Math.Sign(alignedZ.Y) / Math.PI;
+			double z_yz = Math.Asin(Math.Abs(alignedZ.X) / (1 + Math.Abs(alignedZ.X))) * Math.Sign(alignedZ.X) / Math.PI;
 
 			// Makes ship rotate up/down.
 			// Relevant to the Y/Z plane. Rotates around X axis.
-			float x
-				= (float)(y_yz * 1 + z_yz * 1) * 1;
-				//= (float)(x_xy * 0 + x_xz * 0) * 1;
+			float x = (float)(y_yz + z_yz);
 
 			// Makes ship rotate left/right.
 			// Relevant to the X/Z plane. Rotates around Y axis.
-			float y
-				= (float)(x_xz * 1 + z_xz * 1) * 1;
-				//= (float)(y_xy * 0 + y_yz * 0) * 1;
+			float y = (float)(x_xz + z_xz);
 
 			// Makes ship roll counter/clockwise.
 			// Relevant to the X/Y plane. Rotates around Z axis.
-			float z
-				= (float)(x_xy * 1 + y_xy * 1) * 1;
-			//= (float)(z_xz * 1 + z_yz * 1) * 1;
+			float z = (float)(x_xy + y_xy);
 
-			debugBuilder.Append($"X: {y_yz:N2} + {z_yz:N2} = {x:N2}\n");
-			debugBuilder.Append($"Y: {x_xz:N2} + {z_xz:N2} = {y:N2}\n");
-			debugBuilder.Append($"Z: {x_xy:N2} + {y_xy:N2} = {z:N2}\n");
-			debug = debugBuilder.ToString();
-
-			//x = 1;
-			//y = 2;
-			//z = 3;
-
+			int axis = -1;
 			foreach(IMyGyro gyroscope in gyroscopes) {
 
-				MyBlockOrientation orientation = gyroscope.Orientation;
+				Vector3 rotation = new Vector3(x, y, z) * gyroscope.GetMaximum<float>("Yaw") * 0.30f;
 
-				float _x, _y, _z;
-
-				switch(DirectionHelper.Invert(orientation.Left)) {
-					case Base6Directions.Direction.Forward:
-						_x = +y; break;
-					case Base6Directions.Direction.Backward:
-						_x = -y; break;
-					case Base6Directions.Direction.Right:
-						_x = +x; break;
-					case Base6Directions.Direction.Left:
-						_x = -x; break;
-					case Base6Directions.Direction.Up:
-						_x = +z; break;
-					case Base6Directions.Direction.Down:
-						_x = -z; break;
-					default: _x = 0f; break;
+				switch((++axis > 2) ? (axis = 0) : (axis)) {
+					case 0:
+						rotation *= Vector3.Right;
+						break;
+					case 1:
+						rotation *= Vector3.Up;
+						break;
+					case 2:
+						rotation *= Vector3.Forward;
+						break;
 				}
 
-				switch(orientation.Up) {
-					case Base6Directions.Direction.Forward:
-						_y = +y; break;
-					case Base6Directions.Direction.Backward:
-						_y = -y; break;
-					case Base6Directions.Direction.Right:
-						_y = +x; break;
-					case Base6Directions.Direction.Left:
-						_y = -x; break;
-					case Base6Directions.Direction.Up:
-						_y = +z; break;
-					case Base6Directions.Direction.Down:
-						_y = -z; break;
-					default: _y = 0f; break;
-				}
+				Matrix matrix;
+				gyroscope.Orientation.GetMatrix(out matrix);
+				rotation = Vector3.Transform(rotation, matrix);
 
-				switch(orientation.Forward) {
-					case Base6Directions.Direction.Forward:
-						_z = +y; break;
-					case Base6Directions.Direction.Backward:
-						_z = -y; break;
-					case Base6Directions.Direction.Right:
-						_z = +x; break;
-					case Base6Directions.Direction.Left:
-						_z = -x; break;
-					case Base6Directions.Direction.Up:
-						_z = +z; break;
-					case Base6Directions.Direction.Down:
-						_z = -z; break;
-					default: _z = 0f; break;
-				}
-
-				gyroscope.SetValue("Yaw", +y);
-				gyroscope.SetValue("Pitch", -x);
-				gyroscope.SetValue("Roll", -z);
+				gyroscope.Yaw = +rotation.Y;
+				gyroscope.Pitch = -rotation.X;
+				gyroscope.Roll = -rotation.Z;
 
 				gyroscope.GyroOverride = true;
 				gyroscope.GyroPower = 1.00f;
 
 			}
-			#endregion
 
 		}
 

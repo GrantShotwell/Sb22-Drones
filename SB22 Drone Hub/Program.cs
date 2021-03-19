@@ -100,7 +100,7 @@ namespace IngameScript {
 			// Send messages.
 			{
 				foreach(DockingDrone drone in DockingDrones) {
-					Quaternion rotation = Quaternion.CreateFromRotationMatrix(drone.Connector.CubeGrid.WorldMatrix);
+					Quaternion rotation = Quaternion.CreateFromRotationMatrix(drone.Connector.WorldMatrix);
 					var data = Communicator.MakeDockUpdateMessageData(Me.GetPosition(), rotation);
 					if(IGC.SendUnicastMessage(drone.Address, Communicator.tagDockUpdate, data)) MessagesOut++;
 					else continue;

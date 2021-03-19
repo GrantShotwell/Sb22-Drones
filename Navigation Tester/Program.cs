@@ -29,6 +29,8 @@ namespace IngameScript {
 
 		public void Main() {
 
+			Echo($"{Runtime.LastRunTimeMs:N6}ms");
+
 			List<IMyGyro> gyroscopes = new List<IMyGyro>();
 			GridTerminalSystem.GetBlocksOfType(gyroscopes);
 
@@ -37,11 +39,8 @@ namespace IngameScript {
 			IMyRemoteControl control = controls[0];
 
 			Quaternion current = Quaternion.CreateFromRotationMatrix(control.WorldMatrix);
-			Quaternion target = Quaternion.CreateFromForwardUp(Vector3.Forward, Vector3.Up);
-
-			string debug;
-			NavigationHelper.RotateTo(current, target, gyroscopes, out debug);
-			Echo(debug);
+			Quaternion target = Quaternion.CreateFromForwardUp(Vector3.Backward, Vector3.Up);
+			NavigationHelper.RotateTo(current, target, gyroscopes);
 
 		}
 
