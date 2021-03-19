@@ -32,92 +32,51 @@ namespace Sb22.ScriptHelpers {
 		/// <param name="target">The current <see cref="Quaternion"/>.</param>
 		/// <param name="gyroscopes">The collection of <see cref="IMyGyro"/>s to use to rotate the grid.</param>
 		/// <remarks>
-		/// Made by Grant Shotwell (https://github.com/SonicBlue22).
+		/// Original by <see href="https://github.com/Whiplash141">Josh 'Whiplash141'</see>, re-written by <see href="https://github.com/SonicBlue22">Grant Shotwell</see>.
 		/// </remarks>
 		public static void RotateTo(Quaternion current, Quaternion target, ICollection<IMyGyro> gyroscopes) {
 
-			if(target == Quaternion.Zero) return;
-			target.Normalize();
-			if(current == Quaternion.Zero) return;
+			if(Quaternion.IsZero(current)) return;
 			current.Normalize();
+			if(Quaternion.IsZero(target)) return;
+			target.Normalize();
 
-			// Axis of the current rotation.
-			Vector3D currentX = current * new Vector3(1, 0, 0);
-			Vector3D currentY = current * new Vector3(0, 1, 0);
-			Vector3D currentZ = current * new Vector3(0, 0, 1);
+			Quaternion inverse = Quaternion.Inverse(current);
+			Vector3 targetRt = inverse * target.Right;
+			Vector3 targetUp = inverse * target.Up;
+			Vector3 targetFw = inverse * target.Forward;
 
-			// Rotate the whole system so that the 'current' axis are now the world axis.
-			var inverse = Quaternion.Inverse(target);
-			Vector3D alignedX = inverse * currentX;
-			Vector3D alignedY = inverse * currentY;
-			Vector3D alignedZ = inverse * currentZ;
+			Matrix matrix = Matrix.Zero;
+			matrix.Forward = targetFw;
+			matrix.Left = -targetRt;
+			matrix.Up = targetUp;
 
-			// Each world axis has two perpendicular planes that go along it.
-			// Planes can be defined by their normal vector and any point on the plane.
-			// Since we know the planes are at the origin, we only need the normal vector.
-			//Vector3 xyPlane = new Vector3(0, 0, 1);
-			//Vector3 xzPlane = new Vector3(0, 1, 0);
-			//Vector3 yzPlane = new Vector3(1, 0, 0);
-			// However, since the plane normals have components of just zero and one,
-			// it is easier and more efficient to simplify the equasions for each angle.
+			Vector3 axis = new Vector3(matrix.M23 - matrix.M32, matrix.M31 - matrix.M13, matrix.M12 - matrix.M21);
+			double trace = matrix.M11 + matrix.M22 + matrix.M33;
+			float angle = (float)Math.Acos(MathHelper.Clamp((trace - 1) * 0.5, -1, 1)) / (float)Math.PI;
 
-			// Angle (a) between a plane (normal=n) at the origin and a vector (v) is
-			// a = arcsin( |n∙v| / (|n|∙|v|) )
-			// Since every plane's normal vector has a single non-zero component,
-			// then we can simplify the equasion to be relevant to the single component (w).
-			// a = arcsin( |w| / (1+|w|) )
+			float yaw, pitch, roll;
+			if(Vector3.IsZero(axis)) {
+				angle = targetFw.Z < 0f ? 0f : (float)Math.PI;
+				yaw = angle;
+				pitch = 0f;
+				roll = 0f;
+			} else {
+				axis.Normalize();
+				yaw = -axis.Y * angle;
+				pitch = -axis.X * angle;
+				roll = -axis.Z * angle;
+			}
 
-			// The aligned X axis needs to be rotated towards the world X/Y plane and the X/Z plane.
-			double x_xy = Math.Asin(Math.Abs(alignedX.Z) / (1.0 + Math.Abs(alignedX.Z))) * Math.Sign(alignedX.Z) / Math.PI;
-			double x_xz = Math.Asin(Math.Abs(alignedX.Y) / (1.0 + Math.Abs(alignedX.Y))) * Math.Sign(alignedX.Y) / Math.PI;
-
-			// The aligned Y axis needs to be rotated towards the world Y/Z plane and the X/Y plane.
-			double y_yz = Math.Asin(Math.Abs(alignedY.X) / (1.0 + Math.Abs(alignedY.X))) * Math.Sign(alignedY.X) / Math.PI;
-			double y_xy = Math.Asin(Math.Abs(alignedY.Z) / (1.0 + Math.Abs(alignedY.Z))) * Math.Sign(alignedY.Z) / Math.PI;
-
-			// The aligned Z axis needs to be rotated towards the world X/Z plane and the Y/Z plane.
-			double z_xz = Math.Asin(Math.Abs(alignedZ.Y) / (1.0 + Math.Abs(alignedZ.Y))) * Math.Sign(alignedZ.Y) / Math.PI;
-			double z_yz = Math.Asin(Math.Abs(alignedZ.X) / (1.0 + Math.Abs(alignedZ.X))) * Math.Sign(alignedZ.X) / Math.PI;
-
-			// Rotation angle around X axis.
-			float x = (float)(y_yz + z_yz) / 2f;
-			if(Math.Abs(x) < 0.01) x = 0f;
-
-			// Rotation angle around Y axis.
-			float y = (float)(z_xz + x_xz) / 2f;
-			if(Math.Abs(y) < 0.01) y = 0f;
-
-			// Rotation angle around Z axis.
-			float z = (float)(x_xy + y_xy) / 2f;
-			if(Math.Abs(z) < 0.01) z = 0f;
-
-			int axis = -1;
+			Vector3 rotation = inverse * new Vector3(pitch, yaw, roll);
 			foreach(IMyGyro gyroscope in gyroscopes) {
 
-				Vector3 rotation = new Vector3(x, y, z) * gyroscope.GetMaximum<float>("Yaw");
+				Vector3 rot = Vector3.TransformNormal(rotation, Matrix.Transpose(gyroscope.WorldMatrix));
 
-				switch((++axis > 2) ? (axis = 0) : (axis)) {
-					case 0:
-						rotation *= Vector3.Right;
-						break;
-					case 1:
-						rotation *= Vector3.Up;
-						break;
-					case 2:
-						rotation *= Vector3.Forward;
-						break;
-				}
-
-				Matrix matrix;
-				gyroscope.Orientation.GetMatrix(out matrix);
-				rotation = Vector3.Transform(rotation, matrix);
-
-				gyroscope.Yaw = +rotation.Y;
-				gyroscope.Pitch = -rotation.X;
-				gyroscope.Roll = -rotation.Z;
-
+				gyroscope.Pitch = rot.X * gyroscope.GetMaximum<float>("Pitch");
+				gyroscope.Yaw = rot.Y * gyroscope.GetMaximum<float>("Yaw");
+				gyroscope.Roll = rot.Z * gyroscope.GetMaximum<float>("Roll");
 				gyroscope.GyroOverride = true;
-				gyroscope.GyroPower = 1.00f;
 
 			}
 
