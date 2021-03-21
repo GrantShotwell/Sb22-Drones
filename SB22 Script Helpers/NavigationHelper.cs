@@ -26,35 +26,37 @@ namespace Sb22.ScriptHelpers {
 	public static class NavigationHelper {
 
 		/// <summary>
-		/// Uses <paramref name="gyroscopes"/> to rotate the grid to the target <see cref="Quaternion"/>, <paramref name="target"/>, given the current <see cref="Quaternion"/>, <paramref name="current"/>.
+		/// Uses <paramref name="gyroscopes"/> to rotate the grid to the target <see cref="Quaternion"/>, <paramref name="target"/>, given the current <see cref="Quaternion"/>, <paramref name="grid"/>.
 		/// </summary>
-		/// <param name="current">The target <see cref="Quaternion"/>.</param>
+		/// <param name="grid">The target <see cref="Quaternion"/>.</param>
 		/// <param name="target">The current <see cref="Quaternion"/>.</param>
 		/// <param name="gyroscopes">The collection of <see cref="IMyGyro"/>s to use to rotate the grid.</param>
 		/// <remarks>
 		/// Made by Grant Shotwell (https://github.com/SonicBlue22).
 		/// </remarks>
-		public static void RotateTo(Quaternion current, Quaternion target, IMyShipController control, ICollection<IMyGyro> gyroscopes, Action<string> echo = null) {
+		public static void RotateTo(Quaternion offset, Quaternion grid, Quaternion target, IMyShipController control, ICollection<IMyGyro> gyroscopes, Action<string> echo = null) {
 
 			if(target == Quaternion.Zero) return;
 			target.Normalize();
-			if(current == Quaternion.Zero) return;
-			current.Normalize();
+			if(grid == Quaternion.Zero) return;
+			grid.Normalize();
+
+			target *= offset;
 			
 			if(echo != null) {
-				echo(current.ToString("N2"));
+				echo(grid.ToString("N2"));
 				echo(target.ToString("N2"));
 			}
 
 			Vector3D unitY = new Vector3D(0.0, 1.0, 0.0);
 			Vector3D unitZ = new Vector3D(0.0, 0.0, -1.0);
 
-			Vector3D currentY = current * unitY;
-			Vector3D currentZ = current * unitZ;
+			Vector3D gridY = grid * unitY;
+			Vector3D gridZ = grid * unitZ;
 
 			Quaternion inverse = Quaternion.Inverse(target);
-			Vector3D alignedY = inverse * currentY;
-			Vector3D alignedZ = inverse * currentZ;
+			Vector3D alignedY = inverse * gridY;
+			Vector3D alignedZ = inverse * gridZ;
 
 			// Angle between two vectors:
 			// θ = arcos((a·b)/(|a|·|b|))

@@ -38,9 +38,15 @@ namespace IngameScript {
 			GridTerminalSystem.GetBlocksOfType(controls);
 			IMyRemoteControl control = controls[0];
 
+			List<IMyShipConnector> connectors = new List<IMyShipConnector>();
+			GridTerminalSystem.GetBlocksOfType(connectors);
+			IMyShipConnector connector = connectors[0];
+
+			Quaternion offset;
+			connector.Orientation.GetQuaternion(out offset);
 			Quaternion current = Quaternion.CreateFromRotationMatrix(Me.CubeGrid.WorldMatrix);
 			Quaternion target = Quaternion.CreateFromForwardUp(Vector3.Forward, Vector3.Up);
-			NavigationHelper.RotateTo(current, target, control, gyroscopes, Echo);
+			NavigationHelper.RotateTo(offset, current, target, control, gyroscopes, Echo);
 
 		}
 
