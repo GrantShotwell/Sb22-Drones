@@ -32,53 +32,83 @@ namespace Sb22.ScriptHelpers {
 		/// <param name="target">The current <see cref="Quaternion"/>.</param>
 		/// <param name="gyroscopes">The collection of <see cref="IMyGyro"/>s to use to rotate the grid.</param>
 		/// <remarks>
-		/// Original by <see href="https://github.com/Whiplash141">Josh 'Whiplash141'</see>, adapted by <see href="https://github.com/SonicBlue22">Grant Shotwell</see>.
+		/// Made by Grant Shotwell (https://github.com/SonicBlue22).
 		/// </remarks>
-		public static void RotateTo(Quaternion current, Quaternion target, IMyShipController control, ICollection<IMyGyro> gyroscopes, Action<string> echo) {
+		public static void RotateTo(Quaternion current, Quaternion target, IMyShipController control, ICollection<IMyGyro> gyroscopes, Action<string> echo = null) {
 
-			if(Quaternion.IsZero(current)) return;
-			current.Normalize();
-			if(Quaternion.IsZero(target)) return;
+			if(target == Quaternion.Zero) return;
 			target.Normalize();
-
-			echo(current.ToString("N2"));
-			echo(target.ToString("N2"));
-
-			Quaternion inverse = Quaternion.Inverse(current);
-			Vector3 targetRt = inverse * target.Right;
-			Vector3 targetUp = inverse * target.Up;
-			Vector3 targetFw = inverse * target.Forward;
-
-			Matrix matrix = Matrix.Zero;
-			matrix.Forward = targetFw;
-			matrix.Left = -targetRt;
-			matrix.Up = targetUp;
-
-			Vector3 axis = new Vector3(matrix.M23 - matrix.M32, matrix.M31 - matrix.M13, matrix.M12 - matrix.M21);
-			float trace = matrix.M11 + matrix.M22 + matrix.M33;
-			float angle = (float)Math.Acos(MathHelper.Clamp((trace - 1f) * 0.5f, -1f, 1f)) / (float)Math.PI;
-
-			float yaw, pitch, roll;
-			if(Vector3.IsZero(axis)) {
-				angle = targetFw.Z < 0f ? 0f : (float)Math.PI;
-				yaw = angle;
-				pitch = 0f;
-				roll = 0f;
-			} else {
-				axis.Normalize();
-				yaw = -axis.Y * angle;
-				pitch = -axis.X * angle;
-				roll = -axis.Z * angle;
+			if(current == Quaternion.Zero) return;
+			current.Normalize();
+			
+			if(echo != null) {
+				echo(current.ToString("N2"));
+				echo(target.ToString("N2"));
 			}
 
-			Vector3 rotation = inverse * new Vector3(pitch, yaw, roll);
+			Vector3D unitY = new Vector3D(0.0, 1.0, 0.0);
+			Vector3D unitZ = new Vector3D(0.0, 0.0, -1.0);
+
+			Vector3D currentY = current * unitY;
+			Vector3D currentZ = current * unitZ;
+
+			Quaternion inverse = Quaternion.Inverse(target);
+			Vector3D alignedY = inverse * currentY;
+			Vector3D alignedZ = inverse * currentZ;
+
+			// Angle between two vectors:
+			// θ = arcos((a·b)/(|a|·|b|))
+
+			double angleY = Math.Acos(alignedY.Y / alignedY.Length()) / Math.PI;
+			Vector3D crossY = new Vector3D(-alignedY.Z, 0.0, +alignedY.X);
+			double y = crossY.Normalize();
+			if(Math.Abs(y) < 0.001) crossY = Vector3D.Zero;
+			else crossY *= angleY;
+
+			double angleZ = Math.Acos(alignedZ.Z / alignedZ.Length()) / Math.PI;
+			Vector3D crossZ = new Vector3D(+alignedZ.Y, -alignedZ.X, 0.0);
+			double z = crossZ.Normalize();
+			if(Math.Abs(z) < 0.001) crossZ = Vector3D.Zero;
+			else crossZ *= angleZ;
+
+			if(echo != null) {
+				echo($"{angleY * 180.0 / Math.PI:N1} {(crossY / angleY).ToString("N2")}");
+				echo($"{angleZ * 180.0 / Math.PI:N1} {(crossZ / angleZ).ToString("N2")}");
+			}
+
+			bool axis = false;
 			foreach(IMyGyro gyroscope in gyroscopes) {
 
-				Vector3 rot = Vector3.TransformNormal(rotation, Matrix.Transpose(gyroscope.WorldMatrix));
+				if(axis = !axis) {
 
-				gyroscope.Pitch = rot.X;
-				gyroscope.Yaw = rot.Y;
-				gyroscope.Roll = rot.Z;
+					Vector3 rotation = -crossZ;
+
+					Quaternion orientation;
+					gyroscope.Orientation.GetQuaternion(out orientation);
+					rotation = Quaternion.Inverse(orientation) * rotation;
+
+					gyroscope.Pitch = rotation.X;
+					gyroscope.Yaw = -rotation.Y;
+					gyroscope.Roll = rotation.Z;
+
+
+				} else {
+
+					Vector3 rotation = crossY;
+
+					Quaternion orientation;
+					gyroscope.Orientation.GetQuaternion(out orientation);
+					rotation = Quaternion.Inverse(orientation) * rotation;
+
+					gyroscope.Pitch = rotation.X;
+					gyroscope.Yaw = rotation.Y;
+					gyroscope.Roll = rotation.Z;
+
+				}
+
+				gyroscope.Pitch *= gyroscope.GetMaximum<float>("Pitch");
+				gyroscope.Yaw *= gyroscope.GetMaximum<float>("Yaw");
+				gyroscope.Roll *= gyroscope.GetMaximum<float>("Roll");
 				gyroscope.GyroOverride = true;
 
 			}
