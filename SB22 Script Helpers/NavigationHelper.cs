@@ -118,14 +118,31 @@ namespace Sb22.ScriptHelpers {
 		}
 
 		/// <summary>
-		/// Uses <paramref name="thrusters"/> to move the grid along <paramref name="vector"/>.
+		/// Uses <paramref name="thrusters"/> to move the grid along <paramref name="target"/>.
 		/// </summary>
-		/// <param name="vector">The local direction and magnitude to move the grid.</param>
+		/// <param name="target">The local direction and magnitude to move the grid.</param>
 		/// <param name="thrusters">The collection of <see cref="IMyGyro"/>s to use to move the grid.</param>
 		/// <param name="percentage">The percentage of power for each <see cref="IMyThrust"/> to use.</param>
-		public static void MoveToLocal(Vector3D vector, ICollection<IMyThrust> thrusters, float percentage = 1.00f) {
+		public static void MoveTo(Vector3D current, Vector3D target, IMyShipController control, ICollection<IMyThrust> thrusters, float percentage = 1.00f, Action<string> echo = null) {
+
+			Vector3D linear = control.GetShipVelocities().LinearVelocity;
+			Vector3D delta = current - target;
+			Vector3D movement = delta / 1.0;
+
+			if(echo != null) {
+				echo(delta.ToString("N2"));
+			}
 
 			foreach(IMyThrust thruster in thrusters) {
+
+				MatrixD rotation = thruster.WorldMatrix;
+				double dot = Vector3D.Dot(rotation.Forward, movement);
+				dot = MathHelper.Clamp(dot, 0.00, 1.00);
+				thruster.ThrustOverride = (float)dot;
+
+				if(echo != null) {
+					echo($"{thruster.Name}: {dot:N1}");
+				}
 
 			}
 

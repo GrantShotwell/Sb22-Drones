@@ -31,24 +31,18 @@ namespace IngameScript {
 
 		IMyRemoteControl Control { get; set; }
 		IMyShipConnector Connector { get; set; }
-		Vector3D ControlToConnector => Connector.Position - Control.Position;
-		Vector3D ConnectorToControl => Control.Position - Connector.Position;
 
 		List<IMyGyro> Gyroscopes { get; } = new List<IMyGyro>();
 		List<IMyThrust> Thrusters { get; } = new List<IMyThrust>();
 
+		bool DockingRequested { get; set; }
 		bool TargetConnectorExists { get; set; }
-		float TargetConnectorHalfLength { get; set; }
-		Vector3D TargetConnectorLocalPosition { get; set; }
+		float TargetConnectorClearance { get; set; }
 		Vector3D TargetConnectorWorldPosition { get; set; }
 		Quaternion TargetConnectorWorldRotation { get; set; }
-		Vector3D TargetConnectorForward { get; set; }
-		Vector3D TargetConnectorUp { get; set; }
 
-		double ConnectDistance => TargetConnectorHalfLength + (Base6Directions.GetIntVector(Base6Directions.Direction.Forward) * Connector.Max).AbsMax();
-		double ApproachDistance => ConnectDistance + Me.CubeGrid.WorldVolume.Radius * 1.5;
-
-		string DefaultEcho { get; set; }
+		double ConnectDistance => TargetConnectorClearance + (Base6Directions.GetIntVector(Base6Directions.Direction.Forward) * Connector.Max).AbsMax();
+		double ApproachDistance => ConnectDistance + Me.CubeGrid.WorldVolume.Radius * 1.3;
 
 
 		/// <summary>
@@ -56,16 +50,79 @@ namespace IngameScript {
 		/// </summary>
 		public Program() {
 
-			// Set update frequency.
-			Runtime.UpdateFrequency = UpdateFrequency.None;
-
 			// Get the main text surface of the programmable block.
 			Console = new ConsoleHelper(Me.GetSurface(0));
-			Console.WriteLine("Program initialized.");
+
+			// Load from storage.
+			string storage = Storage;
+			string[] elements = storage.Split(',');
+			if(elements.Length > 0) {
+				try {
+
+					int i = 0;
+
+					bool requested;
+					bool.TryParse(elements[i++], out requested);
+					DockingRequested = requested;
+
+					bool exists;
+					bool.TryParse(elements[i++], out exists);
+					TargetConnectorExists = exists;
+
+					float clearance;
+					float.TryParse(elements[i++], out clearance);
+					TargetConnectorClearance = clearance;
+
+					Vector3D position;
+					double.TryParse(elements[i++], out position.X);
+					double.TryParse(elements[i++], out position.Y);
+					double.TryParse(elements[i++], out position.Z);
+					TargetConnectorWorldPosition = position;
+
+					Quaternion rotation;
+					float.TryParse(elements[i++], out rotation.X);
+					float.TryParse(elements[i++], out rotation.Y);
+					float.TryParse(elements[i++], out rotation.Z);
+					float.TryParse(elements[i++], out rotation.W);
+					TargetConnectorWorldRotation = rotation;
+
+					Console.WriteLine("Loaded values from storage.");
+
+				} catch(Exception e) {
+
+					Console.WriteLine("Error loading values from storage.");
+					Console.WriteLine(e.GetType().Name);
+
+				}
+			}
+
+			// Set update frequency.
+			Runtime.UpdateFrequency = TargetConnectorExists ? UpdateFrequency.Update1 :  UpdateFrequency.None;
+
+			// Finish.
+			Console.WriteLine("Program constructed.");
 			Console.Apply();
 
 		}
 
+
+		/// <summary>
+		/// Called when the program needs to save its state.
+		/// Use this method to save your state to <see cref="MyGridProgram.Storage"/>or some other means.
+		/// </summary>
+		public void Save() {
+
+			string[] elements = new string[] {
+				DockingRequested.ToString(),
+				TargetConnectorExists.ToString(),
+				TargetConnectorClearance.ToString(),
+				TargetConnectorWorldPosition.X.ToString(), TargetConnectorWorldPosition.Y.ToString(), TargetConnectorWorldPosition.Z.ToString(),
+				TargetConnectorWorldRotation.X.ToString(), TargetConnectorWorldRotation.Y.ToString(), TargetConnectorWorldRotation.Z.ToString(), TargetConnectorWorldRotation.W.ToString()
+			};
+
+			Storage = string.Join(",", elements);
+
+		}
 
 		/// <summary>
 		/// The main entry point of the script,
@@ -121,6 +178,7 @@ namespace IngameScript {
 						var data = Communicator.MakeDockRequestMessageData(Connector.GetPosition());
 						IGC.SendBroadcastMessage(Communicator.tagDockRequest, data, TransmissionDistance.TransmissionDistanceMax);
 						Console.WriteLine("Docking request sent. Waiting for reply.");
+						DockingRequested = true;
 						Runtime.UpdateFrequency = UpdateFrequency.Update10;
 					}
 
@@ -138,11 +196,8 @@ namespace IngameScript {
 
 						case Communicator.tagDockAccept: {
 
-							Base6Directions.Direction direction;
-							Vector3 normal;
-							Vector3I up;
-							float length;
-							if(!Communicator.ParseDockAcceptMessageData(message.Data as string, out length, out direction, out normal, out up)) {
+							float clearance;
+							if(!Communicator.ParseDockAcceptMessageData(message.Data as string, out clearance)) {
 								Console.WriteLine("Failed to parse dock accept message.");
 								Console.WriteLine(message.Data);
 								break;
@@ -152,10 +207,7 @@ namespace IngameScript {
 							GridTerminalSystem.GetBlocksOfType(Thrusters, thruster => thruster.CubeGrid == Me.CubeGrid);
 
 							TargetConnectorExists = true;
-							TargetConnectorHalfLength = length / 2f;
-							TargetConnectorLocalPosition = normal;
-							TargetConnectorForward = Base6Directions.GetVector(direction);
-							TargetConnectorUp = up;
+							TargetConnectorClearance = clearance;
 							Console.WriteLine("Docking request accepted.");
 							break;
 
@@ -163,9 +215,9 @@ namespace IngameScript {
 
 						case Communicator.tagDockUpdate: {
 
-							Vector3D gridPosition;
-							Quaternion gridRotation;
-							if(!Communicator.ParseDockUpdateMessageData(message.Data as string, out gridPosition, out gridRotation)) {
+							Vector3D connectorPosition;
+							Quaternion connectorRotation;
+							if(!Communicator.ParseDockUpdateMessageData(message.Data as string, out connectorPosition, out connectorRotation)) {
 								Console.WriteLine("Failed to parse dock update message.");
 								Console.WriteLine(message.Data);
 								break;
@@ -174,8 +226,8 @@ namespace IngameScript {
 							if(TargetConnectorExists) {
 
 								Runtime.UpdateFrequency = UpdateFrequency.Update1;
-								TargetConnectorWorldRotation = gridRotation;
-								TargetConnectorWorldPosition = gridPosition + gridRotation * TargetConnectorLocalPosition;
+								TargetConnectorWorldRotation = connectorRotation;
+								TargetConnectorWorldPosition = connectorPosition;
 								break;
 
 							} else {
@@ -221,10 +273,10 @@ namespace IngameScript {
 						Connector.Orientation.GetQuaternion(out offset);
 						Quaternion current = Quaternion.CreateFromRotationMatrix(Me.CubeGrid.WorldMatrix);
 						Quaternion target = TargetConnectorWorldRotation;
-						NavigationHelper.RotateTo(Quaternion.Inverse(offset), current, target, control, Gyroscopes, Echo);
+						NavigationHelper.RotateTo(Quaternion.Inverse(offset), current, target, control, Gyroscopes);
 
 						// Move to connect.
-						NavigationHelper.MoveToLocal(TargetConnectorWorldPosition - (current * Connector.Position) * (float)ApproachDistance, Thrusters);
+						NavigationHelper.MoveTo(Connector.GetPosition(), TargetConnectorWorldPosition + TargetConnectorWorldRotation * (TargetConnectorLocalForward * ApproachDistance), control, Thrusters, 1.00f, Echo);
 
 					}
 
@@ -233,14 +285,6 @@ namespace IngameScript {
 			}
 
 			Console.Apply();
-
-		}
-
-		/// <summary>
-		/// Called when the program needs to save its state.
-		/// Use this method to save your state to <see cref="MyGridProgram.Storage"/>or some other means.
-		/// </summary>
-		public void Save() {
 
 		}
 

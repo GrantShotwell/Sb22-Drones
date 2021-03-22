@@ -57,6 +57,7 @@ namespace IngameScript {
 			}
 		}
 
+		Queue<DockingDrone> QueuedDockingDrones { get; } = new Queue<DockingDrone>();
 		ICollection<DockingDrone> DockingDrones { get; } = new LinkedList<DockingDrone>();
 
 		HashSet<IMyShipConnector> TakenConnectors { get; } = new HashSet<IMyShipConnector>();
@@ -66,19 +67,149 @@ namespace IngameScript {
 		/// </summary>
 		public Program() {
 
+			// Get the main text surface of the programmable block.
+			Console = new ConsoleHelper(Me.GetSurface(0));
+
+			// Load from storage.
+			if(!string.IsNullOrWhiteSpace(Storage)) {
+
+				try {
+
+					string storage = Storage;
+
+					var links = new LinkedList<char>();
+					for(int i = 0; i < storage.Length; i++) {
+
+						if(storage[i] == '=') {
+
+							char[] array = links.ToArray();
+							string section = new string(array);
+							links.Clear();
+
+							switch(section) {
+
+								case "docking": {
+									var element = new LinkedList<char>();
+									var elements = new LinkedList<string>();
+									while(++i < storage.Length) {
+										if(storage[i] == ',') element.AddLast(storage[i]);
+										else if(storage[i] == '}') break;
+										else element.AddLast(storage[i]);
+									}
+									LinkedListNode<string> elem = elements.First;
+									int count = elements.Count;
+									DockingDrone[] drones = new DockingDrone[count / 3];
+									for(int j = 0; j < count; j += 3) {
+										long address = long.Parse(elem.Value);
+										elem = elem.Next;
+										long connector = long.Parse(elem.Value);
+										elem = elem.Next;
+										uint ticks = uint.Parse(elem.Value);
+										elem = elem.Next;
+										drones[j / 3] = new DockingDrone(address, connector, ticks, GridTerminalSystem);
+									}
+									DockingDrones = new LinkedList<DockingDrone>(drones);
+									break;
+								}
+
+								case "dockingQ": {
+									var element = new LinkedList<char>();
+									var elements = new LinkedList<string>();
+									while(++i < storage.Length) {
+										if(storage[i] == ',') element.AddLast(storage[i]);
+										else if(storage[i] == '}') break;
+										else element.AddLast(storage[i]);
+									}
+									LinkedListNode<string> elem = elements.First;
+									int count = elements.Count;
+									DockingDrone[] drones = new DockingDrone[count / 3];
+									for(int j = 0; j < count; j += 3) {
+										long address = long.Parse(elem.Value);
+										elem = elem.Next;
+										long connector = long.Parse(elem.Value);
+										elem = elem.Next;
+										uint ticks = uint.Parse(elem.Value);
+										elem = elem.Next;
+										drones[j / 3] = new DockingDrone(address, connector, ticks, GridTerminalSystem);
+									}
+									QueuedDockingDrones = new Queue<DockingDrone>(drones);
+									break;
+								}
+
+								default: {
+									Console.WriteLine($"Unknown storage section '{section}'.");
+									break;
+								}
+
+							}
+
+						} else {
+
+							links.AddLast(storage[i]);
+
+						}
+
+					}
+
+					Console.WriteLine("Loaded from storage.");
+
+				} catch(Exception e) {
+
+					Console.WriteLine("Error loading from storage.");
+					Console.WriteLine(e.GetType().Name);
+
+				}
+
+			}
+
 			// Set update frequency.
 			Runtime.UpdateFrequency = UpdateFrequency.Update1;
 
 			// Set broadcast listeners.
 			ListenerDockAccept = IGC.RegisterBroadcastListener(Communicator.tagDockRequest);
 
-			// Get the main text surface of the programmable block.
-			Console = new ConsoleHelper(Me.GetSurface(0));
-			Console.WriteLine("Program initialized.");
+			// Finish.
+			Console.WriteLine("Program constructed.");
 			Console.Apply();
 
 		}
 
+
+		/// <summary>
+		/// Called when the program needs to save its state.
+		/// Use this method to save your state to <see cref="MyGridProgram.Storage"/> or some other means.
+		/// </summary>
+		public void Save() {
+
+			StringBuilder storage = new StringBuilder();
+
+			// Docking Drones
+			storage.Append("docking=");
+			storage.Append(DockingDrones.Count);
+			storage.Append("{");
+			foreach(DockingDrone drone in DockingDrones) {
+				AppendStorage(storage, drone);
+			}
+			storage.Append("}");
+
+			// Docking Queue
+			storage.Append("dockingQ=");
+			storage.Append(QueuedDockingDrones.Count);
+			storage.Append("{");
+			foreach(DockingDrone drone in QueuedDockingDrones) {
+				AppendStorage(storage, drone);
+			}
+			storage.Append("}");
+
+			Storage = storage.ToString();
+
+		}
+
+		private void AppendStorage(StringBuilder storage, DockingDrone drone) {
+			storage.Append(drone.Address.ToString());
+			storage.Append(drone.Connector.EntityId.ToString());
+			storage.Append(drone.Ticks.ToString());
+		}
 
 		/// <summary>
 		/// The main entry point of the script,
@@ -96,13 +227,24 @@ namespace IngameScript {
 			RuntimeStartNs = DateTime.Now.Ticks;
 			List<IMyShipConnector> connectors = null;
 
-			// TODO: Cancel dockings that take too long.
+			// Cancel dockings that take too long.
+			{
+				foreach(DockingDrone drone in DockingDrones.ToArray()) {
+					drone.Tick();
+					if(drone.Ticks > 7200) {
+						DockingDrones.Remove(drone);
+						if(QueuedDockingDrones.Count > 0) {
+							DockingDrones.Add(QueuedDockingDrones.Dequeue());
+						}
+					}
+				}
+			}
 
 			// Send messages.
 			{
 				foreach(DockingDrone drone in DockingDrones) {
 					Quaternion rotation = Quaternion.CreateFromRotationMatrix(drone.Connector.WorldMatrix);
-					var data = Communicator.MakeDockUpdateMessageData(Me.GetPosition(), rotation);
+					var data = Communicator.MakeDockUpdateMessageData(drone.Connector.GetPosition(), rotation);
 					if(IGC.SendUnicastMessage(drone.Address, Communicator.tagDockUpdate, data)) MessagesOut++;
 					else continue;
 				}
@@ -144,7 +286,7 @@ namespace IngameScript {
 
 						// Send message back.
 						float length = (Base6Directions.GetIntVector(Base6Directions.Direction.Forward) * closest.Max).AbsMax();
-						var data = Communicator.MakeDockAcceptMessageData(length, closest.Orientation.Forward, closest.Position, Base6Directions.GetIntVector(closest.Orientation.Up));
+						var data = Communicator.MakeDockAcceptMessageData(length);
 						if(IGC.SendUnicastMessage(message.Source, Communicator.tagDockAccept, data)) {
 							MessagesOut++;
 							break;
@@ -165,23 +307,25 @@ namespace IngameScript {
 
 		}
 
-		/// <summary>
-		/// Called when the program needs to save its state.
-		/// Use this method to save your state to <see cref="MyGridProgram.Storage"/>or some other means.
-		/// </summary>
-		public void Save() {
-
-		}
-
 		struct DockingDrone {
 
 			public long Address { get; }
 			public IMyShipConnector Connector { get; }
+			public uint Ticks { get; set; }
 
 			public DockingDrone(long droneID, IMyShipConnector connector) {
 				Address = droneID;
 				Connector = connector;
+				Ticks = 0;
 			}
+
+			public DockingDrone(long droneID, long connectorID, uint ticks, IMyGridTerminalSystem terminal) {
+				Address = droneID;
+				Connector = terminal.GetBlockWithId(connectorID) as IMyShipConnector;
+				Ticks = ticks;
+			}
+
+			public void Tick() => Ticks++;
 
 		}
 
