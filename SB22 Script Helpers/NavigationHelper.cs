@@ -32,12 +32,12 @@ namespace Sb22.ScriptHelpers {
 		/// <param name="target">The target rotation.</param>
 		/// <param name="control">A source of grid info to potentially account for when rotating.</param>
 		/// <param name="gyroscopes">The <see cref="IMyGyro"/>s to use to rotate the grid.</param>
-		/// <param name="speed">The rotational speed, in radians per second, when the axis is a full 180° (π radians) away. Lowered as the angle decreases.</param>
+		/// <param name="speed">The rotational speed in radians per second.</param>
 		/// <param name="echo">An output for debugging.</param>
 		/// <remarks>
 		/// Made by <see href="https://github.com/SonicBlue22">Grant Shotwell</see>.
 		/// </remarks>
-		public static void RotateTo(Quaternion grid, Quaternion target, IMyShipController control, ICollection<IMyGyro> gyroscopes, float speed = 1f, Action<string> echo = null) {
+		public static void RotateTo(Quaternion grid, Quaternion target, IMyShipController control, ICollection<IMyGyro> gyroscopes, float speed = 15.70f, Action<string> echo = null) {
 
 			// Normalize quaternions. Don't deal with zeros.
 			if(target == Quaternion.Zero) return;
@@ -56,15 +56,11 @@ namespace Sb22.ScriptHelpers {
 				echo(target.ToString("N2"));
 			}
 
-			// The Y axis is reasonable.
-			// For some reason, Z axis is backwards.
-			Vector3 unitY = new Vector3(0f, +1f, 0f);
-			Vector3 unitZ = new Vector3(0f, 0f, -1f);
 
 			// Make math easier by aligning target axis with coordinate space.
-			Quaternion inverse = Quaternion.Inverse(target);
-			Vector3 alignedY = inverse * (grid * unitY);
-			Vector3 alignedZ = inverse * (grid * unitZ);
+			Quaternion q = Quaternion.Inverse(target) * grid;
+			Vector3 alignedY = q * new Vector3(0f, 1f, 0f);
+			Vector3 alignedZ = q * new Vector3(0f, 0f, 1f);
 
 			// Gyroscopes don't use pitch, yaw, and roll. Instead, they take rotation vectors.
 			// For each axis to align we need the cross product of current and target
@@ -77,12 +73,12 @@ namespace Sb22.ScriptHelpers {
 			// Since 'speed' is in radians per second, we need to divide angle by 1 radian unit (π).
 			// After that, we can multiply the angle by 'speed' to get the final rotational speed.
 
-			float angleY = (float)Math.Acos(alignedY.Y / alignedY.Length()) / (float)Math.PI;
+			float angleY = (float)(Math.Acos(alignedY.Y / alignedY.Length()) / Math.PI);
 			Vector3 crossY = new Vector3(-alignedY.Z, 0f, +alignedY.X);
 			if(crossY.Normalize() > 0.001f) crossY *= angleY * speed;
 			else crossY = Vector3D.Zero;
 
-			float angleZ = (float)Math.Acos(alignedZ.Z / alignedZ.Length()) / (float)Math.PI;
+			float angleZ = (float)(Math.Acos(alignedZ.Z / alignedZ.Length()) / Math.PI);
 			Vector3 crossZ = new Vector3(+alignedZ.Y, -alignedZ.X, 0f);
 			if(crossZ.Normalize() > 0.001f) crossZ *= angleZ * speed;
 			else crossZ = Vector3D.Zero;
@@ -99,33 +95,20 @@ namespace Sb22.ScriptHelpers {
 
 			foreach(IMyGyro gyroscope in gyroscopes) {
 
-				if(axis = !axis) {
+				// Get rotation vector.
+				Vector3 rotation = (axis = !axis) ? crossZ : crossY;
+				
+				// Rotate rotation vector to fit this gyroscope.
+				Quaternion orientation;
+				gyroscope.Orientation.GetQuaternion(out orientation);
+				rotation = Quaternion.Inverse(orientation) * rotation;
 
-					Vector3 rotation = -crossZ;
+				// Apply rotation vector.
+				gyroscope.Pitch = -rotation.X;
+				gyroscope.Yaw = -rotation.Y;
+				gyroscope.Roll = -rotation.Z;
 
-					Quaternion orientation;
-					gyroscope.Orientation.GetQuaternion(out orientation);
-					rotation = Quaternion.Inverse(orientation) * rotation;
-
-					gyroscope.Pitch = rotation.X;
-					gyroscope.Yaw = -rotation.Y;
-					gyroscope.Roll = rotation.Z;
-
-
-				} else {
-
-					Vector3 rotation = crossY;
-
-					Quaternion orientation;
-					gyroscope.Orientation.GetQuaternion(out orientation);
-					rotation = Quaternion.Inverse(orientation) * rotation;
-
-					gyroscope.Pitch = rotation.X;
-					gyroscope.Yaw = rotation.Y;
-					gyroscope.Roll = rotation.Z;
-
-				}
-
+				// Safe to assume caller wants gyroscope override.
 				gyroscope.GyroOverride = true;
 
 			}
@@ -158,11 +141,11 @@ namespace Sb22.ScriptHelpers {
 
 			foreach(IMyThrust thruster in thrusters) {
 
-				float dot = Vector3.Dot(thruster.WorldMatrix.Forward, force);
+				float dot = MathHelper.Clamp(Vector3.Dot(thruster.WorldMatrix.Forward, force), 0f, float.PositiveInfinity);
 				thruster.ThrustOverride = dot;
 
 				if(echo != null) {
-					echo($"{thruster.CustomName}: {dot:N0}");
+					echo($"{thruster.CustomName}: {dot / 1000f:N0}kN");
 				}
 
 			}

@@ -53,46 +53,85 @@ namespace IngameScript {
 			// Get the main text surface of the programmable block.
 			Console = new ConsoleHelper(Me.GetSurface(0));
 
+			// Load settings from custom data.
+			bool storageLoad = true;
+			{
+				string[] settings = Me.CustomData.Split('\n');
+				foreach(string setting in settings) {
+					string[] split = setting.Split('=');
+					if(split.Length != 2) {
+						Console.WriteLine("Could not parse setting:");
+						Console.WriteLine(setting);
+						continue;
+					}
+					
+					string name = split[0].Trim();
+					string data = split[1].Trim();
+
+					switch(name) {
+
+						case "storageLoad": {
+							if(!bool.TryParse(data, out storageLoad)) {
+								Console.WriteLine("Could not parse setting data into bool:");
+								Console.WriteLine(setting);
+								break;
+							}
+							break;
+						}
+
+						default: {
+							Console.WriteLine("Unknown setting:");
+							Console.WriteLine(setting);
+							break;
+						}
+
+					}
+
+				}
+			}
+
 			// Load from storage.
-			string storage = Storage;
-			string[] elements = storage.Split(',');
-			if(elements.Length > 0) {
-				try {
+			if(storageLoad) {
+				string storage = Storage;
+				string[] elements = storage.Split(',');
+				if(elements.Length > 0) {
+					try {
 
-					int i = 0;
+						int i = 0;
 
-					bool requested;
-					bool.TryParse(elements[i++], out requested);
-					DockingRequested = requested;
+						bool requested;
+						bool.TryParse(elements[i++], out requested);
+						DockingRequested = requested;
 
-					bool exists;
-					bool.TryParse(elements[i++], out exists);
-					TargetConnectorExists = exists;
+						bool exists;
+						bool.TryParse(elements[i++], out exists);
+						TargetConnectorExists = exists;
 
-					float clearance;
-					float.TryParse(elements[i++], out clearance);
-					TargetConnectorClearance = clearance;
+						float clearance;
+						float.TryParse(elements[i++], out clearance);
+						TargetConnectorClearance = clearance;
 
-					Vector3D position;
-					double.TryParse(elements[i++], out position.X);
-					double.TryParse(elements[i++], out position.Y);
-					double.TryParse(elements[i++], out position.Z);
-					TargetConnectorWorldPosition = position;
+						Vector3D position;
+						double.TryParse(elements[i++], out position.X);
+						double.TryParse(elements[i++], out position.Y);
+						double.TryParse(elements[i++], out position.Z);
+						TargetConnectorWorldPosition = position;
 
-					Quaternion rotation;
-					float.TryParse(elements[i++], out rotation.X);
-					float.TryParse(elements[i++], out rotation.Y);
-					float.TryParse(elements[i++], out rotation.Z);
-					float.TryParse(elements[i++], out rotation.W);
-					TargetConnectorWorldRotation = rotation;
+						Quaternion rotation;
+						float.TryParse(elements[i++], out rotation.X);
+						float.TryParse(elements[i++], out rotation.Y);
+						float.TryParse(elements[i++], out rotation.Z);
+						float.TryParse(elements[i++], out rotation.W);
+						TargetConnectorWorldRotation = rotation;
 
-					Console.WriteLine("Loaded values from storage.");
+						Console.WriteLine("Loaded values from storage.");
 
-				} catch(Exception e) {
+					} catch(Exception e) {
 
-					Console.WriteLine("Error loading values from storage.");
-					Console.WriteLine(e.GetType().Name);
+						Console.WriteLine($"Error loading values from storage. ({elements.Length})");
+						Console.WriteLine(e.GetType().Name);
 
+					}
 				}
 			}
 
@@ -272,10 +311,10 @@ namespace IngameScript {
 						Connector.Orientation.GetQuaternion(out offset);
 						Quaternion current = Quaternion.CreateFromRotationMatrix(Me.CubeGrid.WorldMatrix);
 						Quaternion target = TargetConnectorWorldRotation;
-						NavigationHelper.RotateTo(current, target * Quaternion.Inverse(offset), control, Gyroscopes);
+						NavigationHelper.RotateTo(current, target * offset, control, Gyroscopes);
 
 						// Move to connect.
-						NavigationHelper.MoveTo(Connector.GetPosition(), TargetConnectorWorldPosition + TargetConnectorWorldRotation * (Vector3.Forward * ApproachDistance), Thrusters, control, 1.0, Echo);
+						NavigationHelper.MoveTo(Connector.GetPosition(), TargetConnectorWorldPosition + TargetConnectorWorldRotation * (Vector3.Forward * ApproachDistance), Thrusters, control, 0.1f, Echo);
 
 					}
 

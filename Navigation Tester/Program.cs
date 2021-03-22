@@ -46,7 +46,7 @@ namespace IngameScript {
 			connector.Orientation.GetQuaternion(out offset);
 			Quaternion current = Quaternion.CreateFromRotationMatrix(Me.CubeGrid.WorldMatrix);
 			Quaternion target = Quaternion.CreateFromForwardUp(Vector3.Forward, Vector3.Up);
-			NavigationHelper.RotateTo(current, target * offset, control, gyroscopes, 0.1f, Echo);
+			NavigationHelper.RotateTo(current, target * offset, control, gyroscopes);
 
 		}
 
