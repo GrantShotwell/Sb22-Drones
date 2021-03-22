@@ -28,15 +28,14 @@ namespace Sb22.ScriptHelpers {
 		/// <summary>
 		/// Uses <paramref name="gyroscopes"/> to rotate the grid to the target <see cref="Quaternion"/>, <paramref name="target"/>, given the current <see cref="Quaternion"/>, <paramref name="grid"/>.
 		/// </summary>
-		/// <param name="grid">The current <see cref="Quaternion"/>.</param>
-		/// <param name="target">The target <see cref="Quaternion"/>.</param>
+		/// <param name="grid">The current rotation.</param>
+		/// <param name="target">The target rotation.</param>
 		/// <param name="control">A source of grid info to potentially account for when rotating.</param>
 		/// <param name="gyroscopes">The <see cref="IMyGyro"/>s to use to rotate the grid.</param>
-		/// <param name="speed">The rotational speed, in radians per second, when the axis is a full 180° (π radians) away.
-		/// Speed is automatically lowered as the angle decreases.</param>
+		/// <param name="speed">The rotational speed, in radians per second, when the axis is a full 180° (π radians) away. Lowered as the angle decreases.</param>
 		/// <param name="echo">An output for debugging.</param>
 		/// <remarks>
-		/// Made by Grant Shotwell (https://github.com/SonicBlue22).
+		/// Made by <see href="https://github.com/SonicBlue22">Grant Shotwell</see>.
 		/// </remarks>
 		public static void RotateTo(Quaternion grid, Quaternion target, IMyShipController control, ICollection<IMyGyro> gyroscopes, float speed = 1f, Action<string> echo = null) {
 
@@ -45,6 +44,11 @@ namespace Sb22.ScriptHelpers {
 			target.Normalize();
 			if(grid == Quaternion.Zero) return;
 			grid.Normalize();
+
+			// Debug output 'not enough gyroscopes' warning.
+			if(echo != null && gyroscopes.Count < 2) {
+				echo("WARNING: At least two gyroscopes are required to properly rotate.");
+			}
 			
 			// Debug output current quaternion angles.
 			if(echo != null) {
@@ -62,28 +66,26 @@ namespace Sb22.ScriptHelpers {
 			Vector3 alignedY = inverse * (grid * unitY);
 			Vector3 alignedZ = inverse * (grid * unitZ);
 
-			// Gyroscopes don't use pitch, yaw, and roll.
-			// Instead they take rotation vectors.
-			// For each axis to align, then, we need the cross product of current and target
+			// Gyroscopes don't use pitch, yaw, and roll. Instead, they take rotation vectors.
+			// For each axis to align we need the cross product of current and target
 			// with a length of rotation speed (directly proportional to angle).
 
 			// Angle between two vectors:
-			// θ = arcos((a·b)/(|a|·|b|))
+			// θ = cos⁻¹((a·b)/(|a|·|b|))
 
 			// Gyroscope rotation speed is in radians per second.
-			// The angle is already in those units. No need to change anything there!
+			// Since 'speed' is in radians per second, we need to divide angle by 1 radian unit (π).
+			// After that, we can multiply the angle by 'speed' to get the final rotational speed.
 
-			float angleY = (float)Math.Acos(alignedY.Y / alignedY.Length());
+			float angleY = (float)Math.Acos(alignedY.Y / alignedY.Length()) / (float)Math.PI;
 			Vector3 crossY = new Vector3(-alignedY.Z, 0f, +alignedY.X);
-			float y = crossY.Normalize();
-			if(y < 0.001f) crossY = Vector3D.Zero;
-			else crossY *= angleY * speed;
+			if(crossY.Normalize() > 0.001f) crossY *= angleY * speed;
+			else crossY = Vector3D.Zero;
 
-			float angleZ = (float)Math.Acos(alignedZ.Z / alignedZ.Length());
+			float angleZ = (float)Math.Acos(alignedZ.Z / alignedZ.Length()) / (float)Math.PI;
 			Vector3 crossZ = new Vector3(+alignedZ.Y, -alignedZ.X, 0f);
-			float z = crossZ.Normalize();
-			if(z < 0.001f) crossZ = Vector3D.Zero;
-			else crossZ *= angleZ * speed;
+			if(crossZ.Normalize() > 0.001f) crossZ *= angleZ * speed;
+			else crossZ = Vector3D.Zero;
 
 			// Debug output current axis angles.
 			if(echo != null) {
@@ -140,6 +142,7 @@ namespace Sb22.ScriptHelpers {
 		/// <param name="echo">An output for debugging.</param>
 		public static void MoveTo(Vector3D current, Vector3D target, ICollection<IMyThrust> thrusters, IMyShipController control, float time = 1f, Action<string> echo = null) {
 
+			// Calculate ideal force (no thrust limits).
 			float mass = control.CalculateShipMass().TotalMass;
 			Vector3 linear = control.GetShipVelocities().LinearVelocity;
 			Vector3 distance = current - target;
@@ -159,7 +162,7 @@ namespace Sb22.ScriptHelpers {
 				thruster.ThrustOverride = dot;
 
 				if(echo != null) {
-					echo($"{thruster.CustomName}: {dot:P1}");
+					echo($"{thruster.CustomName}: {dot:N0}");
 				}
 
 			}
