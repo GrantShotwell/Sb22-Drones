@@ -28,57 +28,73 @@ namespace Sb22.ScriptHelpers {
 		/// <summary>
 		/// Uses <paramref name="gyroscopes"/> to rotate the grid to the target <see cref="Quaternion"/>, <paramref name="target"/>, given the current <see cref="Quaternion"/>, <paramref name="grid"/>.
 		/// </summary>
-		/// <param name="grid">The target <see cref="Quaternion"/>.</param>
-		/// <param name="target">The current <see cref="Quaternion"/>.</param>
-		/// <param name="gyroscopes">The collection of <see cref="IMyGyro"/>s to use to rotate the grid.</param>
+		/// <param name="grid">The current <see cref="Quaternion"/>.</param>
+		/// <param name="target">The target <see cref="Quaternion"/>.</param>
+		/// <param name="control">A source of grid info to potentially account for when rotating.</param>
+		/// <param name="gyroscopes">The <see cref="IMyGyro"/>s to use to rotate the grid.</param>
+		/// <param name="speed">The rotational speed, in radians per second, when the axis is a full 180° (π radians) away.
+		/// Speed is automatically lowered as the angle decreases.</param>
+		/// <param name="echo">An output for debugging.</param>
 		/// <remarks>
 		/// Made by Grant Shotwell (https://github.com/SonicBlue22).
 		/// </remarks>
-		public static void RotateTo(Quaternion offset, Quaternion grid, Quaternion target, IMyShipController control, ICollection<IMyGyro> gyroscopes, Action<string> echo = null) {
+		public static void RotateTo(Quaternion grid, Quaternion target, IMyShipController control, ICollection<IMyGyro> gyroscopes, float speed = 1f, Action<string> echo = null) {
 
+			// Normalize quaternions. Don't deal with zeros.
 			if(target == Quaternion.Zero) return;
 			target.Normalize();
 			if(grid == Quaternion.Zero) return;
 			grid.Normalize();
-
-			target *= offset;
 			
+			// Debug output current quaternion angles.
 			if(echo != null) {
 				echo(grid.ToString("N2"));
 				echo(target.ToString("N2"));
 			}
 
-			Vector3D unitY = new Vector3D(0.0, 1.0, 0.0);
-			Vector3D unitZ = new Vector3D(0.0, 0.0, -1.0);
+			// The Y axis is reasonable.
+			// For some reason, Z axis is backwards.
+			Vector3 unitY = new Vector3(0f, +1f, 0f);
+			Vector3 unitZ = new Vector3(0f, 0f, -1f);
 
-			Vector3D gridY = grid * unitY;
-			Vector3D gridZ = grid * unitZ;
-
+			// Make math easier by aligning target axis with coordinate space.
 			Quaternion inverse = Quaternion.Inverse(target);
-			Vector3D alignedY = inverse * gridY;
-			Vector3D alignedZ = inverse * gridZ;
+			Vector3 alignedY = inverse * (grid * unitY);
+			Vector3 alignedZ = inverse * (grid * unitZ);
+
+			// Gyroscopes don't use pitch, yaw, and roll.
+			// Instead they take rotation vectors.
+			// For each axis to align, then, we need the cross product of current and target
+			// with a length of rotation speed (directly proportional to angle).
 
 			// Angle between two vectors:
 			// θ = arcos((a·b)/(|a|·|b|))
 
-			double angleY = Math.Acos(alignedY.Y / alignedY.Length()) / Math.PI;
-			Vector3D crossY = new Vector3D(-alignedY.Z, 0.0, +alignedY.X);
-			double y = crossY.Normalize();
-			if(Math.Abs(y) < 0.001) crossY = Vector3D.Zero;
-			else crossY *= angleY;
+			// Gyroscope rotation speed is in radians per second.
+			// The angle is already in those units. No need to change anything there!
 
-			double angleZ = Math.Acos(alignedZ.Z / alignedZ.Length()) / Math.PI;
-			Vector3D crossZ = new Vector3D(+alignedZ.Y, -alignedZ.X, 0.0);
-			double z = crossZ.Normalize();
-			if(Math.Abs(z) < 0.001) crossZ = Vector3D.Zero;
-			else crossZ *= angleZ;
+			float angleY = (float)Math.Acos(alignedY.Y / alignedY.Length());
+			Vector3 crossY = new Vector3(-alignedY.Z, 0f, +alignedY.X);
+			float y = crossY.Normalize();
+			if(y < 0.001f) crossY = Vector3D.Zero;
+			else crossY *= angleY * speed;
 
+			float angleZ = (float)Math.Acos(alignedZ.Z / alignedZ.Length());
+			Vector3 crossZ = new Vector3(+alignedZ.Y, -alignedZ.X, 0f);
+			float z = crossZ.Normalize();
+			if(z < 0.001f) crossZ = Vector3D.Zero;
+			else crossZ *= angleZ * speed;
+
+			// Debug output current axis angles.
 			if(echo != null) {
-				echo($"{angleY * 180.0 / Math.PI:N1} {(crossY / angleY).ToString("N2")}");
-				echo($"{angleZ * 180.0 / Math.PI:N1} {(crossZ / angleZ).ToString("N2")}");
+				echo($"{angleY * 180f / (float)Math.PI:N1} {(crossY / angleY).ToString("N2")}");
+				echo($"{angleZ * 180f / (float)Math.PI:N1} {(crossZ / angleZ).ToString("N2")}");
 			}
 
+			// Apply rotation vectors to gyroscopes. Only one rotation vector per gyroscope.
+			// Since there are two rotation vectors, switch between them each time.
 			bool axis = false;
+
 			foreach(IMyGyro gyroscope in gyroscopes) {
 
 				if(axis = !axis) {
@@ -108,9 +124,6 @@ namespace Sb22.ScriptHelpers {
 
 				}
 
-				gyroscope.Pitch *= gyroscope.GetMaximum<float>("Pitch");
-				gyroscope.Yaw *= gyroscope.GetMaximum<float>("Yaw");
-				gyroscope.Roll *= gyroscope.GetMaximum<float>("Roll");
 				gyroscope.GyroOverride = true;
 
 			}
@@ -120,28 +133,33 @@ namespace Sb22.ScriptHelpers {
 		/// <summary>
 		/// Uses <paramref name="thrusters"/> to move the grid along <paramref name="target"/>.
 		/// </summary>
-		/// <param name="target">The local direction and magnitude to move the grid.</param>
-		/// <param name="thrusters">The collection of <see cref="IMyGyro"/>s to use to move the grid.</param>
-		/// <param name="percentage">The percentage of power for each <see cref="IMyThrust"/> to use.</param>
-		public static void MoveTo(Vector3D current, Vector3D target, IMyShipController control, ICollection<IMyThrust> thrusters, float percentage = 1.00f, Action<string> echo = null) {
+		/// <param name="current">The current world position of the grid.</param>
+		/// <param name="target">The target world position of the grid.</param>
+		/// <param name="thrusters">The <see cref="IMyThrust"/>s to use to move the grid.</param>
+		/// <param name="control">A source of grid info to potentially account for when moving.</param>
+		/// <param name="echo">An output for debugging.</param>
+		public static void MoveTo(Vector3D current, Vector3D target, ICollection<IMyThrust> thrusters, IMyShipController control, float time = 1f, Action<string> echo = null) {
 
-			Vector3D linear = control.GetShipVelocities().LinearVelocity;
-			Vector3D delta = current - target;
-			Vector3D movement = delta / 1.0;
+			float mass = control.CalculateShipMass().TotalMass;
+			Vector3 linear = control.GetShipVelocities().LinearVelocity;
+			Vector3 distance = current - target;
+			Vector3 velocity = distance / time - linear;
+			Vector3 acceleration = velocity / time;
+			Vector3 force = mass * acceleration;
+
+			// TODO: Account for maximum thrust possible.
 
 			if(echo != null) {
-				echo(delta.ToString("N2"));
+				echo(velocity.ToString("N2"));
 			}
 
 			foreach(IMyThrust thruster in thrusters) {
 
-				MatrixD rotation = thruster.WorldMatrix;
-				double dot = Vector3D.Dot(rotation.Forward, movement);
-				dot = MathHelper.Clamp(dot, 0.00, 1.00);
-				thruster.ThrustOverride = (float)dot;
+				float dot = Vector3.Dot(thruster.WorldMatrix.Forward, force);
+				thruster.ThrustOverride = dot;
 
 				if(echo != null) {
-					echo($"{thruster.Name}: {dot:N1}");
+					echo($"{thruster.CustomName}: {dot:P1}");
 				}
 
 			}

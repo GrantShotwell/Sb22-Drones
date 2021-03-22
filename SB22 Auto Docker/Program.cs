@@ -41,8 +41,8 @@ namespace IngameScript {
 		Vector3D TargetConnectorWorldPosition { get; set; }
 		Quaternion TargetConnectorWorldRotation { get; set; }
 
-		double ConnectDistance => TargetConnectorClearance + (Base6Directions.GetIntVector(Base6Directions.Direction.Forward) * Connector.Max).AbsMax();
-		double ApproachDistance => ConnectDistance + Me.CubeGrid.WorldVolume.Radius * 1.3;
+		float ConnectDistance => TargetConnectorClearance;
+		float ApproachDistance => ConnectDistance + (float)Me.CubeGrid.WorldVolume.Radius * 1.3f;
 
 
 		/// <summary>
@@ -135,7 +135,6 @@ namespace IngameScript {
 		public void Main(string argument, UpdateType updateSource) {
 
 			Echo($"Last execution took {Runtime.LastRunTimeMs:N6}ms.");
-			Echo($"Current update source: {Convert.ToString((int)updateSource, 2).PadLeft(10, '0')}");
 
 			bool error = false;
 
@@ -273,10 +272,10 @@ namespace IngameScript {
 						Connector.Orientation.GetQuaternion(out offset);
 						Quaternion current = Quaternion.CreateFromRotationMatrix(Me.CubeGrid.WorldMatrix);
 						Quaternion target = TargetConnectorWorldRotation;
-						NavigationHelper.RotateTo(Quaternion.Inverse(offset), current, target, control, Gyroscopes);
+						NavigationHelper.RotateTo(current, target * Quaternion.Inverse(offset), control, Gyroscopes);
 
 						// Move to connect.
-						NavigationHelper.MoveTo(Connector.GetPosition(), TargetConnectorWorldPosition + TargetConnectorWorldRotation * (TargetConnectorLocalForward * ApproachDistance), control, Thrusters, 1.00f, Echo);
+						NavigationHelper.MoveTo(Connector.GetPosition(), TargetConnectorWorldPosition + TargetConnectorWorldRotation * (Vector3.Forward * ApproachDistance), Thrusters, control, 1.0, Echo);
 
 					}
 

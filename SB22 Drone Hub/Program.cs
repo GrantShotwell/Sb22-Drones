@@ -222,7 +222,6 @@ namespace IngameScript {
 		public void Main(string argument, UpdateType updateSource) {
 
 			Echo($"ID: {Me.EntityId}");
-			Echo($"Current update source: {Convert.ToString((int)updateSource, 2).PadLeft(10, '0')}");
 			Echo($"Last execution took {Runtime.LastRunTimeMs:N6}ms.");
 			RuntimeStartNs = DateTime.Now.Ticks;
 			List<IMyShipConnector> connectors = null;
