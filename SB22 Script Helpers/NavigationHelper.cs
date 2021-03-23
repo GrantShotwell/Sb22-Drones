@@ -32,12 +32,12 @@ namespace Sb22.ScriptHelpers {
 		/// <param name="target">The target rotation.</param>
 		/// <param name="control">A source of grid info to potentially account for when rotating.</param>
 		/// <param name="gyroscopes">The <see cref="IMyGyro"/>s to use to rotate the grid.</param>
-		/// <param name="speed">The rotational speed in radians per second.</param>
+		/// <param name="speed">The rotational speed in rotations per second.</param>
 		/// <param name="echo">An output for debugging.</param>
 		/// <remarks>
 		/// Made by <see href="https://github.com/SonicBlue22">Grant Shotwell</see>.
 		/// </remarks>
-		public static void RotateTo(Quaternion grid, Quaternion target, IMyShipController control, ICollection<IMyGyro> gyroscopes, float speed = 15.70f, Action<string> echo = null) {
+		public static void RotateTo(Quaternion grid, Quaternion target, IMyShipController control, ICollection<IMyGyro> gyroscopes, float speed = 1f, Action<string> echo = null) {
 
 			// Normalize quaternions. Don't deal with zeros.
 			if(target == Quaternion.Zero) return;
@@ -69,16 +69,15 @@ namespace Sb22.ScriptHelpers {
 			// Angle between two vectors:
 			// θ = cos⁻¹((a·b)/(|a|·|b|))
 
-			// Gyroscope rotation speed is in radians per second.
-			// Since 'speed' is in radians per second, we need to divide angle by 1 radian unit (π).
-			// After that, we can multiply the angle by 'speed' to get the final rotational speed.
+			// Gyroscope rotation speed input is in radians per second.
+			// Angle is already in radians, so we don't have to do anything there!
 
-			float angleY = (float)(Math.Acos(alignedY.Y / alignedY.Length()) / Math.PI);
+			float angleY = (float)Math.Acos(alignedY.Y / alignedY.Length());
 			Vector3 crossY = new Vector3(-alignedY.Z, 0f, +alignedY.X);
 			if(crossY.Normalize() > 0.001f) crossY *= angleY * speed;
 			else crossY = Vector3D.Zero;
 
-			float angleZ = (float)(Math.Acos(alignedZ.Z / alignedZ.Length()) / Math.PI);
+			float angleZ = (float)Math.Acos(alignedZ.Z / alignedZ.Length());
 			Vector3 crossZ = new Vector3(+alignedZ.Y, -alignedZ.X, 0f);
 			if(crossZ.Normalize() > 0.001f) crossZ *= angleZ * speed;
 			else crossZ = Vector3D.Zero;
