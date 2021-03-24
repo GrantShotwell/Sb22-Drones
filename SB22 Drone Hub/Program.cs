@@ -136,6 +136,26 @@ namespace IngameScript {
 									break;
 								}
 
+								case "takenConnectors": {
+									var element = new LinkedList<char>();
+									var elements = new LinkedList<string>();
+									while(++i < storage.Length) {
+										if(storage[i] == ',') element.AddLast(storage[i]);
+										else if(storage[i] == '}') break;
+										else element.AddLast(storage[i]);
+									}
+									LinkedListNode<string> elem = elements.First;
+									int count = elements.Count;
+									IMyShipConnector[] connectors = new IMyShipConnector[count];
+									for(int j = 0; j < count; j += 3) {
+										long id = long.Parse(elem.Value);
+										elem = elem.Next;
+										connectors[j] = GridTerminalSystem.GetBlockWithId(id) as IMyShipConnector;
+									}
+									TakenConnectors = new HashSet<IMyShipConnector>(connectors);
+									break;
+								}
+
 								default: {
 									Console.WriteLine($"Unknown storage section '{section}'.");
 									break;
@@ -182,13 +202,17 @@ namespace IngameScript {
 		public void Save() {
 
 			StringBuilder storage = new StringBuilder();
+			bool comma;
 
 			// Docking Drones
 			storage.Append("docking=");
 			storage.Append(DockingDrones.Count);
 			storage.Append("{");
+			comma = false;
 			foreach(DockingDrone drone in DockingDrones) {
+				if(comma) storage.Append(',');
 				AppendStorage(storage, drone);
+				comma = true;
 			}
 			storage.Append("}");
 
@@ -196,10 +220,25 @@ namespace IngameScript {
 			storage.Append("dockingQ=");
 			storage.Append(QueuedDockingDrones.Count);
 			storage.Append("{");
+			comma = false;
 			foreach(DockingDrone drone in QueuedDockingDrones) {
+				if(comma) storage.Append(',');
 				AppendStorage(storage, drone);
+				comma = true;
 			}
 			storage.Append("}");
+
+			// Taken Connectors
+			storage.Append("takenConnectors=");
+			storage.Append(TakenConnectors.Count);
+			storage.Append("{");
+			comma = false;
+			foreach(IMyShipConnector connector in TakenConnectors) {
+				if(comma) storage.Append(',');
+				AppendStorage(storage, connector);
+				comma = true;
+			}
+			storage.Append("{");
 
 			Storage = storage.ToString();
 
@@ -207,8 +246,14 @@ namespace IngameScript {
 
 		private void AppendStorage(StringBuilder storage, DockingDrone drone) {
 			storage.Append(drone.Address.ToString());
+			storage.Append(',');
 			storage.Append(drone.Connector.EntityId.ToString());
+			storage.Append(',');
 			storage.Append(drone.Ticks.ToString());
+		}
+
+		private void AppendStorage(StringBuilder storage, IMyShipConnector connector) {
+			storage.Append(connector.EntityId.ToString());
 		}
 
 		/// <summary>
@@ -232,6 +277,7 @@ namespace IngameScript {
 					drone.Tick();
 					if(drone.Ticks > 7200) {
 						DockingDrones.Remove(drone);
+						TakenConnectors.Remove(drone.Connector);
 						if(QueuedDockingDrones.Count > 0) {
 							DockingDrones.Add(QueuedDockingDrones.Dequeue());
 						}
@@ -245,7 +291,11 @@ namespace IngameScript {
 					Quaternion rotation = Quaternion.CreateFromRotationMatrix(drone.Connector.WorldMatrix);
 					var data = Communicator.MakeDockUpdateMessageData(drone.Connector.GetPosition(), rotation);
 					if(IGC.SendUnicastMessage(drone.Address, Communicator.tagDockUpdate, data)) MessagesOut++;
-					else continue;
+					else {
+						// TEMP: Remove drone if disconnected.
+						DockingDrones.Remove(drone);
+						TakenConnectors.Remove(drone.Connector);
+					}
 				}
 			}
 
@@ -309,7 +359,7 @@ namespace IngameScript {
 		struct DockingDrone {
 
 			public long Address { get; }
-			public IMyShipConnector Connector { get; }
+			public IMyShipConnector Connector { get; set; }
 			public uint Ticks { get; set; }
 
 			public DockingDrone(long droneID, IMyShipConnector connector) {

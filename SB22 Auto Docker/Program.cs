@@ -60,7 +60,7 @@ namespace IngameScript {
 				foreach(string setting in settings) {
 					string[] split = setting.Split('=');
 					if(split.Length != 2) {
-						Console.WriteLine("Could not parse setting:");
+						Console.WriteLine("Could not split setting:");
 						Console.WriteLine(setting);
 						continue;
 					}
@@ -311,10 +311,24 @@ namespace IngameScript {
 						Connector.Orientation.GetQuaternion(out offset);
 						Quaternion current = Quaternion.CreateFromRotationMatrix(Me.CubeGrid.WorldMatrix);
 						Quaternion target = TargetConnectorWorldRotation;
-						NavigationHelper.RotateTo(current, target * offset, control, Gyroscopes);
+						bool doneRotate = NavigationHelper.RotateTo(
+							grid: current,
+							target: target * offset,
+							control: control,
+							gyroscopes: Gyroscopes,
+							speed: 1f,
+							echo: null
+						);
 
 						// Move to connect.
-						NavigationHelper.MoveTo(Connector.GetPosition(), TargetConnectorWorldPosition + TargetConnectorWorldRotation * (Vector3.Forward * ApproachDistance), Thrusters, control, 0.1f, Echo);
+						bool doneMove = NavigationHelper.MoveTo(
+							current: Connector.GetPosition(),
+							target: TargetConnectorWorldPosition + TargetConnectorWorldRotation * (Vector3.Forward * ApproachDistance),
+							thrusters: Thrusters,
+							control: control,
+							speed: 10f,
+							echo: Echo
+						);
 
 					}
 
