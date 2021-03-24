@@ -36,7 +36,7 @@ namespace Sb22.ScriptHelpers {
 		/// <param name="echo">An output for debugging.</param>
 		/// <returns><see langword="true"/> if sitting on the target; <see langword="false"/> if still rotating.</returns>
 		/// <remarks>
-		/// <para>Will reach the desired rotation within 0.001π radians (0.18­°).</para>
+		/// <para>Will reach the desired rotation within 0.001π radians (0.18°).</para>
 		/// <para>Made by <see href="https://github.com/SonicBlue22">Grant Shotwell</see>.</para>
 		/// </remarks>
 		public static bool RotateTo(Quaternion grid, Quaternion target, IMyShipController control, ICollection<IMyGyro> gyroscopes,
