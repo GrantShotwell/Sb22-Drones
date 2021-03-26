@@ -38,7 +38,6 @@ namespace IngameScript {
 
 		IMyBroadcastListener ListenerDockAccept { get; }
 
-		Dictionary<IMyGridTerminalSystem, List<IMyProgrammableBlock>> Drones { get; }
 		IEnumerable<MyIGCMessage> QueuedMessages {
 			get {
 				while(IGC.UnicastListener.HasPendingMessage)
@@ -287,9 +286,10 @@ namespace IngameScript {
 
 			// Send messages.
 			{
-				foreach(DockingDrone drone in DockingDrones) {
+				foreach(DockingDrone drone in DockingDrones.ToArray()) {
 					Quaternion rotation = Quaternion.CreateFromRotationMatrix(drone.Connector.WorldMatrix);
-					var data = Communicator.MakeDockUpdateMessageData(drone.Connector.GetPosition(), rotation);
+					Vector3 velocity = Vector3.Zero;
+					var data = Communicator.MakeDockUpdateMessageData(drone.Connector.GetPosition(), rotation, velocity);
 					if(IGC.SendUnicastMessage(drone.Address, Communicator.tagDockUpdate, data)) MessagesOut++;
 					else {
 						// TEMP: Remove drone if disconnected.

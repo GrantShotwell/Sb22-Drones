@@ -40,6 +40,7 @@ namespace IngameScript {
 		float TargetConnectorClearance { get; set; }
 		Vector3D TargetConnectorWorldPosition { get; set; }
 		Quaternion TargetConnectorWorldRotation { get; set; }
+		Vector3 TargetConnectorWorldVelocity { get; set; }
 
 		float ConnectDistance => TargetConnectorClearance;
 		float ApproachDistance => ConnectDistance + (float)Me.CubeGrid.WorldVolume.Radius * 1.3f;
@@ -58,6 +59,9 @@ namespace IngameScript {
 			{
 				string[] settings = Me.CustomData.Split('\n');
 				foreach(string setting in settings) {
+
+					if(string.IsNullOrWhiteSpace(setting)) continue;
+
 					string[] split = setting.Split('=');
 					if(split.Length != 2) {
 						Console.WriteLine("Could not split setting:");
@@ -124,6 +128,12 @@ namespace IngameScript {
 						float.TryParse(elements[i++], out rotation.W);
 						TargetConnectorWorldRotation = rotation;
 
+						Vector3 velocity;
+						float.TryParse(elements[i++], out velocity.X);
+						float.TryParse(elements[i++], out velocity.Y);
+						float.TryParse(elements[i++], out velocity.Z);
+						TargetConnectorWorldVelocity = velocity;
+
 						Console.WriteLine("Loaded values from storage.");
 
 					} catch(Exception e) {
@@ -156,7 +166,8 @@ namespace IngameScript {
 				TargetConnectorExists.ToString(),
 				TargetConnectorClearance.ToString(),
 				TargetConnectorWorldPosition.X.ToString(), TargetConnectorWorldPosition.Y.ToString(), TargetConnectorWorldPosition.Z.ToString(),
-				TargetConnectorWorldRotation.X.ToString(), TargetConnectorWorldRotation.Y.ToString(), TargetConnectorWorldRotation.Z.ToString(), TargetConnectorWorldRotation.W.ToString()
+				TargetConnectorWorldRotation.X.ToString(), TargetConnectorWorldRotation.Y.ToString(), TargetConnectorWorldRotation.Z.ToString(), TargetConnectorWorldRotation.W.ToString(),
+				TargetConnectorWorldVelocity.X.ToString(), TargetConnectorWorldVelocity.Y.ToString(), TargetConnectorWorldVelocity.Z.ToString()
 			};
 
 			Storage = string.Join(",", elements);
@@ -242,7 +253,7 @@ namespace IngameScript {
 							}
 
 							GridTerminalSystem.GetBlocksOfType(Gyroscopes, gyroscope => gyroscope.CubeGrid == Me.CubeGrid);
-							GridTerminalSystem.GetBlocksOfType(Thrusters, thruster => thruster.CubeGrid == Me.CubeGrid);
+							GridTerminalSystem.GetBlocksOfType(Thrusters, thruster => thruster.Enabled && thruster.CubeGrid == Me.CubeGrid);
 
 							TargetConnectorExists = true;
 							TargetConnectorClearance = clearance;
@@ -255,7 +266,8 @@ namespace IngameScript {
 
 							Vector3D connectorPosition;
 							Quaternion connectorRotation;
-							if(!Communicator.ParseDockUpdateMessageData(message.Data as string, out connectorPosition, out connectorRotation)) {
+							Vector3 connectorVelocity;
+							if(!Communicator.ParseDockUpdateMessageData(message.Data as string, out connectorPosition, out connectorRotation, out connectorVelocity)) {
 								Console.WriteLine("Failed to parse dock update message.");
 								Console.WriteLine(message.Data);
 								break;
@@ -266,6 +278,7 @@ namespace IngameScript {
 								Runtime.UpdateFrequency = UpdateFrequency.Update1;
 								TargetConnectorWorldRotation = connectorRotation;
 								TargetConnectorWorldPosition = connectorPosition;
+								TargetConnectorWorldVelocity = connectorVelocity;
 								break;
 
 							} else {
@@ -316,7 +329,7 @@ namespace IngameScript {
 							target: target * offset,
 							control: control,
 							gyroscopes: Gyroscopes,
-							speed: 1f,
+							speed: 2f,
 							echo: null
 						);
 
@@ -324,9 +337,10 @@ namespace IngameScript {
 						bool doneMove = NavigationHelper.MoveTo(
 							current: Connector.GetPosition(),
 							target: TargetConnectorWorldPosition + TargetConnectorWorldRotation * (Vector3.Forward * ApproachDistance),
+							velocity: TargetConnectorWorldVelocity,
 							thrusters: Thrusters,
 							control: control,
-							speed: 10f,
+							speed: 50f,
 							echo: Echo
 						);
 

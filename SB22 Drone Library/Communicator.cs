@@ -71,18 +71,20 @@ namespace Sb22.Drones {
 
 		public const string tagDockUpdate = "sb22.dock_update";
 
-		public static string MakeDockUpdateMessageData(Vector3D connectorPosition, Quaternion connectorRotation) {
+		public static string MakeDockUpdateMessageData(Vector3D connectorPosition, Quaternion connectorRotation, Vector3 connectorVelocity) {
 			string[] elements = new string[] {
 				connectorPosition.X.ToString(), connectorPosition.Y.ToString(), connectorPosition.Z.ToString(),
-				connectorRotation.X.ToString(), connectorRotation.Y.ToString(), connectorRotation.Z.ToString(), connectorRotation.W.ToString()
+				connectorRotation.X.ToString(), connectorRotation.Y.ToString(), connectorRotation.Z.ToString(), connectorRotation.W.ToString(),
+				connectorVelocity.X.ToString(), connectorVelocity.Y.ToString(), connectorVelocity.Z.ToString()
 			};
 			return string.Join(",", elements);
 		}
 
-		public static bool ParseDockUpdateMessageData(string data, out Vector3D connectorPosition, out Quaternion connectorRotation) {
+		public static bool ParseDockUpdateMessageData(string data, out Vector3D connectorPosition, out Quaternion connectorRotation, out Vector3 connectorVelocity) {
 			string[] elements = data.Split(',');
 			connectorPosition = Vector3D.Zero;
 			connectorRotation = Quaternion.Zero;
+			connectorVelocity = Vector3.Zero;
 
 			if(elements.Length != 7) return false;
 			if(!double.TryParse(elements[0], out connectorPosition.X)) return false;
@@ -92,6 +94,9 @@ namespace Sb22.Drones {
 			if(!float.TryParse(elements[4], out connectorRotation.Y)) return false;
 			if(!float.TryParse(elements[5], out connectorRotation.Z)) return false;
 			if(!float.TryParse(elements[6], out connectorRotation.W)) return false;
+			if(!float.TryParse(elements[7], out connectorVelocity.X)) return false;
+			if(!float.TryParse(elements[8], out connectorVelocity.Y)) return false;
+			if(!float.TryParse(elements[9], out connectorVelocity.Z)) return false;
 			return true;
 
 		}

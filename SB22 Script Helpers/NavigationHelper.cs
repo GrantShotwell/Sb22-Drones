@@ -124,41 +124,47 @@ namespace Sb22.ScriptHelpers {
 		}
 
 		/// <summary>
-		/// Uses <paramref name="thrusters"/> to move the grid along <paramref name="target"/>.
+		/// Uses <paramref name="thrusters"/> to move the grid towards <paramref name="target"/> until it lands with the target velocity.
 		/// </summary>
 		/// <param name="current">The current world position of the grid.</param>
 		/// <param name="target">The target world position of the grid.</param>
 		/// <param name="thrusters">The <see cref="IMyThrust"/>s to use to move the grid.</param>
 		/// <param name="control">A source of grid info to potentially account for when moving.</param>
 		/// <param name="speed">The max speed in meters per second to travel.</param>
-		/// <param name="velocity">The velocity to be moving at when at the target.</param>
-		/// <param name="delay">The time in seconds between function calls. Default value is one game tick.</param>
+		/// <param name="velocity">The current velocity of <paramref name="target"/>. Magnitude should be sufficiently less than <paramref name="speed"/>.</param>
+		/// <param name="delay">The time in seconds between method calls. Default value is one game tick.</param>
 		/// <param name="echo">An output for debugging.</param>
-		/// <returns><see langword="true"/> if sitting on the target with desired velocity; <see langword="false"/> if still moving.</returns>
+		/// <returns><see langword="true"/> if sitting on the target with desired velocity; <see langword="false"/> if still adjusting and/or moving.</returns>
 		/// <remarks>
-		/// <para>Will reach the destination within a 1m (2 small grid blocks) diameter.
-		/// Will not match target velocity (TODO).</para>
-		/// <para>Made by <see href="https://github.com/SonicBlue22">Grant Shotwell</see>.</para>
+		/// <para>
+		/// Will reach the destination within a 0.5m (1 small grid block) radius. Uses <see href="https://en.wikipedia.org/wiki/Vector_projection">vector projection and rejection</see> to determine the forces to apply.
+		/// Therefore, if the grid is facing the target without any rejected velocity then only forwards/backwards thrusters will be used.
+		/// Otherwise, not having enough thrusters in every direction is insufficient.
+		/// </para>
+		/// <para>
+		/// When a thruster is not needed, it is disabled. When it is, it is enabled.
+		/// Because of this, make sure <paramref name="thrusters"/> was created by checking if the thruster is <see cref="IMyFunctionalBlock.Enabled"/>.
+		/// That way, the ship pilot can enable/disable backup hydrogen thrusters, for example, and not have them re-enabled by this method.
+		/// </para>
+		/// <para>
+		/// Made by <see href="https://github.com/SonicBlue22">Grant Shotwell</see>.
+		/// </para>
 		/// </remarks>
 		public static bool MoveTo(Vector3D current, Vector3D target, ICollection<IMyThrust> thrusters, IMyShipController control,
-		float speed = 10f, Vector3 velocity = default(Vector3), float delay = 0.01667f, Action<string> echo = null) {
+		float speed = float.PositiveInfinity, Vector3 velocity = default(Vector3), float delay = 1f / 60f, Action<string> echo = null) {
 
-			// Set default value(s).
-			if(velocity == default(Vector3)) velocity = Vector3.Zero;
+			// Local constant
+			float sitRadius = 0.5f;
 
 			// Calculate displacement.
-			Vector3 S = target - current;
+			Vector3 S = target - current + velocity * delay;
 			float s = S.Length();
-
-			if(s < 0.5f && velocity == Vector3.Zero) {
-				if(echo != null) echo("Sitting.");
-				DisableOverride(thrusters);
-				return true;
-			}
-
 			// Calculate direction by normalizing displacement.
 			Vector3 direction = S;
 			direction.Normalize();
+			// Get 'zero'.
+			Vector3 VZero = velocity;
+			float vZero = VZero.Length();
 			// Get grid's mass.
 			float m = control.CalculateShipMass().TotalMass;
 			// Get grid's linear velocity (game has inverted it, for some reason).
@@ -170,16 +176,29 @@ namespace Sb22.ScriptHelpers {
 			Vector3 W0 = Vector3.Reject(linear, direction);
 			float w0 = W0.Length();
 			// Calculate the force needed to correct the 'off-target' velocity.
-			Vector3 W0F;
-			if(w0 < 0.001f) W0F = Vector3.Zero;
-			else W0F = m * -W0 / delay;
+			Vector3 W;
+			if(w0 < 0.001f) W = Vector3.Zero;
+			else W = m * -W0 / delay;
+
+			// Do we need to sit?
+			if(velocity == Vector3.Zero && s < sitRadius) {
+				if(echo != null) echo("Sitting.");
+				RemoveOverride(thrusters);
+				return true;
+			}
 
 			// Sum maximum forwards/backwards force.
 			float brakeForce = 0f, accelForce = 0f;
 			foreach(IMyThrust thruster in thrusters) {
-				float thrust = Vector3.Dot(direction, thruster.WorldMatrix.Forward) * thruster.MaxEffectiveThrust;
+				if(!thruster.Enabled) continue;
+
+				// Magnitude of dot product will be positive when the vectors are similar.
+				// Madnitude will be negative when the vectors are otherwise opposite.
+
+				float thrust = Vector3.Dot(direction, thruster.WorldMatrix.Backward) * thruster.MaxEffectiveThrust;
 				if(thrust > 0) accelForce += thrust;
 				else brakeForce += -thrust;
+
 			}
 
 			// Forwards Acceleration
@@ -190,20 +209,22 @@ namespace Sb22.ScriptHelpers {
 			Vector3 A2 = direction * a2;
 			// Cruise Velocity
 			float v1 = speed;
-			Vector3 V1 = direction * v1;
+			Vector3 V1 = direction * v1 + vZero;
 
 			// Calculate distance to brake from current velocity to zero.
-			float t = v0 / a2;
+			float t = (v0 - vZero) / a2;
 			float d = v0 * t + 0.5f * a2 * t * t;
-			// Calculate distance traveled between delay.
+			// Calculate distance that will be traveled between delay.
 			float e = v0 * delay;
 
+			// Decide if we need to brake, accelerate, or wait.
 			bool brake = d > 0f && e > 0f && s <= d + e;
 			bool accel = !brake && (v0 < speed);
 			Vector3 F;
 
+			// Get the thrust force.
 			if(brake) {
-				F = -(m * V0 / t);
+				F = m * (VZero - V0) / t;
 			} else if(accel) {
 				F = m * (V1 - V0) / (m * (v1 - v0) / accelForce);
 			} else {
@@ -212,8 +233,10 @@ namespace Sb22.ScriptHelpers {
 
 			// Debug output current relevent variables.
 			if(echo != null) {
-				echo($"current speed: {v0:N2}m/s");
-				echo($"offset speed: {w0:N2}m/s");
+				echo($"project speed: {v0:N2}m/s");
+				echo(V0.ToString("N2"));
+				echo($"reject speed: {w0:N2}m/s");
+				echo(W0.ToString("N2"));
 				echo($"total distance: {s:N2}m");
 				echo($"brake distance: {d:N2}m ({t:N1}s)");
 				if(accel) echo("ACCEL");
@@ -223,19 +246,22 @@ namespace Sb22.ScriptHelpers {
 
 			// Apply thruster overrides.
 			foreach(IMyThrust thruster in thrusters) {
-
+				if(!thruster.Enabled) continue;
 				bool overridden = false;
 				
-				// Apply forward/backward thrust.
+				// Magnitude of dot product is proportional magnutide of both vectors multiplied.
+				// In this case, one of the vectors is a length of one.
+
+				// Apply project thrust.
 				float f = Vector3.Dot(F, thruster.WorldMatrix.Backward);
 				if(f > 0f) { thruster.ThrustOverride = f; overridden = true; }
 
-				// Apply 'off target' thrust.
-				float w = Vector3.Dot(W0F, thruster.WorldMatrix.Backward);
+				// Apply reject thrust.
+				float w = Vector3.Dot(W, thruster.WorldMatrix.Backward);
 				if(w > 0f) { thruster.ThrustOverride = w; overridden = true; }
 
 				// Remember to disable override!
-				if(!overridden) thruster.ThrustOverride = 0f;
+				if(!overridden) { thruster.ThrustOverride = 0f; thruster.Enabled = false; }
 				if(echo != null) echo($"{thruster.CustomName}: {thruster.ThrustOverride * 1e-3:N1}kN");
 
 			}
@@ -244,8 +270,11 @@ namespace Sb22.ScriptHelpers {
 
 		}
 
-		public static void DisableOverride(ICollection<IMyThrust> thrusters) {
-			foreach(IMyThrust thruster in thrusters) thruster.ThrustOverride = 0f;
+		public static void RemoveOverride(ICollection<IMyThrust> thrusters) {
+			foreach(IMyThrust thruster in thrusters) {
+				thruster.Enabled = true;
+				thruster.ThrustOverride = 0f;
+			}
 		}
 
 	}
