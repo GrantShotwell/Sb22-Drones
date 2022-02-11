@@ -30,7 +30,9 @@ namespace Sb22.Library {
 			return removed;
 		}
 
+		/// <inheritdoc/>
 		public IEnumerator<T> GetEnumerator() => new Enumerator(Array);
+		/// <inheritdoc/>
 		IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
 		public class Enumerator : IEnumerator<T> {

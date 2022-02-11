@@ -56,101 +56,115 @@ namespace IngameScript {
 
 			// Load settings from custom data.
 			bool storageLoad = true;
-			{
-				string[] settings = Me.CustomData.Split('\n');
-				foreach(string setting in settings) {
-
-					if(string.IsNullOrWhiteSpace(setting)) continue;
-
-					string[] split = setting.Split('=');
-					if(split.Length != 2) {
-						Console.WriteLine("Could not split setting:");
-						Console.WriteLine(setting);
-						continue;
-					}
-					
-					string name = split[0].Trim();
-					string data = split[1].Trim();
-
-					switch(name) {
-
-						case "storageLoad": {
-							if(!bool.TryParse(data, out storageLoad)) {
-								Console.WriteLine("Could not parse setting data into bool:");
-								Console.WriteLine(setting);
-								break;
-							}
-							break;
-						}
-
-						default: {
-							Console.WriteLine("Unknown setting:");
-							Console.WriteLine(setting);
-							break;
-						}
-
-					}
-
-				}
-			}
+			ParseSettings(ref storageLoad);
 
 			// Load from storage.
 			if(storageLoad) {
-				string storage = Storage;
-				string[] elements = storage.Split(',');
-				if(elements.Length > 0) {
-					try {
-
-						int i = 0;
-
-						bool requested;
-						bool.TryParse(elements[i++], out requested);
-						DockingRequested = requested;
-
-						bool exists;
-						bool.TryParse(elements[i++], out exists);
-						TargetConnectorExists = exists;
-
-						float clearance;
-						float.TryParse(elements[i++], out clearance);
-						TargetConnectorClearance = clearance;
-
-						Vector3D position;
-						double.TryParse(elements[i++], out position.X);
-						double.TryParse(elements[i++], out position.Y);
-						double.TryParse(elements[i++], out position.Z);
-						TargetConnectorWorldPosition = position;
-
-						Quaternion rotation;
-						float.TryParse(elements[i++], out rotation.X);
-						float.TryParse(elements[i++], out rotation.Y);
-						float.TryParse(elements[i++], out rotation.Z);
-						float.TryParse(elements[i++], out rotation.W);
-						TargetConnectorWorldRotation = rotation;
-
-						Vector3 velocity;
-						float.TryParse(elements[i++], out velocity.X);
-						float.TryParse(elements[i++], out velocity.Y);
-						float.TryParse(elements[i++], out velocity.Z);
-						TargetConnectorWorldVelocity = velocity;
-
-						Console.WriteLine("Loaded values from storage.");
-
-					} catch(Exception e) {
-
-						Console.WriteLine($"Error loading values from storage. ({elements.Length})");
-						Console.WriteLine(e.GetType().Name);
-
-					}
-				}
+				LoadStorage();
 			}
 
 			// Set update frequency.
-			Runtime.UpdateFrequency = TargetConnectorExists ? UpdateFrequency.Update1 :  UpdateFrequency.None;
+			Runtime.UpdateFrequency = TargetConnectorExists ? UpdateFrequency.Update1 : UpdateFrequency.None;
 
 			// Finish.
 			Console.WriteLine("Program constructed.");
 			Console.Apply();
+
+		}
+
+		private void LoadStorage() {
+
+			string storage = Storage;
+			string[] elements = storage.Split(',');
+
+			if(elements.Length == 0) {
+				return;
+			}
+
+			try {
+
+				int i = 0;
+
+				bool requested;
+				bool.TryParse(elements[i++], out requested);
+				DockingRequested = requested;
+
+				bool exists;
+				bool.TryParse(elements[i++], out exists);
+				TargetConnectorExists = exists;
+
+				float clearance;
+				float.TryParse(elements[i++], out clearance);
+				TargetConnectorClearance = clearance;
+
+				Vector3D position;
+				double.TryParse(elements[i++], out position.X);
+				double.TryParse(elements[i++], out position.Y);
+				double.TryParse(elements[i++], out position.Z);
+				TargetConnectorWorldPosition = position;
+
+				Quaternion rotation;
+				float.TryParse(elements[i++], out rotation.X);
+				float.TryParse(elements[i++], out rotation.Y);
+				float.TryParse(elements[i++], out rotation.Z);
+				float.TryParse(elements[i++], out rotation.W);
+				TargetConnectorWorldRotation = rotation;
+
+				Vector3 velocity;
+				float.TryParse(elements[i++], out velocity.X);
+				float.TryParse(elements[i++], out velocity.Y);
+				float.TryParse(elements[i++], out velocity.Z);
+				TargetConnectorWorldVelocity = velocity;
+
+				Console.WriteLine("Loaded values from storage.");
+				Storage = string.Empty;
+
+			}
+			catch(Exception e) {
+
+				Console.WriteLine($"Error loading values from storage. ({elements.Length})");
+				Console.WriteLine(e.GetType().Name);
+
+			}
+
+		}
+
+		private void ParseSettings(ref bool storageLoad) {
+
+			string[] settings = Me.CustomData.Split('\n');
+			foreach(string setting in settings) {
+
+				if(string.IsNullOrWhiteSpace(setting)) {
+					continue;
+				}
+
+				string[] split = setting.Split('=');
+				if(split.Length != 2) {
+					Console.WriteLine("Could not split setting:");
+					Console.WriteLine(setting);
+					continue;
+				}
+
+				string name = split[0].Trim();
+				string data = split[1].Trim();
+
+				switch(name) {
+
+					case "storageLoad":
+						if(!bool.TryParse(data, out storageLoad)) {
+							Console.WriteLine("Could not parse setting data into bool:");
+							Console.WriteLine(setting);
+						}
+						break;
+
+					default:
+						Console.WriteLine("Unknown setting:");
+						Console.WriteLine(setting);
+						break;
+
+				}
+
+			}
 
 		}
 
@@ -187,29 +201,12 @@ namespace IngameScript {
 			Echo($"Last execution took {Runtime.LastRunTimeMs:N6}ms.");
 
 			bool error = false;
-
-			if(Connector == null) {
-				var connectors = new List<IMyShipConnector>();
-				GridTerminalSystem.GetBlocksOfType(connectors, _connector => _connector.CubeGrid == Me.CubeGrid);
-				if(connectors.Count == 0) {
-					Echo("Cannot find a connector to use.");
-					error = true;
-				} else Connector = connectors[0];
-			}
-
-			if(Control == null) {
-				var controls = new List<IMyRemoteControl>();
-				GridTerminalSystem.GetBlocksOfType(controls, _control => _control.CubeGrid == Me.CubeGrid);
-				if(controls.Count == 0) {
-					Echo("Cannot find a remote control to use.");
-					error = true;
-				} else Control = controls[0];
-			}
-
-			if(error) return;
-
-			IMyRemoteControl control = Control;
-			IMyShipConnector connector = Connector;
+			if(Connector == null)
+				error |= TryFindConnector();
+			if(Control == null)
+				error |= TryFindControl();
+			if(error)
+				return;
 
 			switch(argument) {
 
@@ -235,123 +232,168 @@ namespace IngameScript {
 
 			}
 
-			if((updateSource | UpdateType.IGC) != 0) {
-
-				while(IGC.UnicastListener.HasPendingMessage) {
-
-					MyIGCMessage message = IGC.UnicastListener.AcceptMessage();
-
-					switch(message.Tag) {
-
-						case Communicator.tagDockAccept: {
-
-							float clearance;
-							if(!Communicator.ParseDockAcceptMessageData(message.Data as string, out clearance)) {
-								Console.WriteLine("Failed to parse dock accept message.");
-								Console.WriteLine(message.Data);
-								break;
-							}
-
-							GridTerminalSystem.GetBlocksOfType(Gyroscopes, gyroscope => gyroscope.CubeGrid == Me.CubeGrid);
-							GridTerminalSystem.GetBlocksOfType(Thrusters, thruster => thruster.Enabled && thruster.CubeGrid == Me.CubeGrid);
-
-							TargetConnectorExists = true;
-							TargetConnectorClearance = clearance;
-							Console.WriteLine("Docking request accepted.");
-							break;
-
-						}
-
-						case Communicator.tagDockUpdate: {
-
-							Vector3D connectorPosition;
-							Quaternion connectorRotation;
-							Vector3 connectorVelocity;
-							if(!Communicator.ParseDockUpdateMessageData(message.Data as string, out connectorPosition, out connectorRotation, out connectorVelocity)) {
-								Console.WriteLine("Failed to parse dock update message.");
-								Console.WriteLine(message.Data);
-								break;
-							}
-
-							if(TargetConnectorExists) {
-
-								Runtime.UpdateFrequency = UpdateFrequency.Update1;
-								TargetConnectorWorldRotation = connectorRotation;
-								TargetConnectorWorldPosition = connectorPosition;
-								TargetConnectorWorldVelocity = connectorVelocity;
-								break;
-
-							} else {
-
-								Console.WriteLine("Recieved dock update before the dock order.");
-								break;
-
-							}
-
-						}
-
-						default:
-							break;
-
-					}
-
-				}
-
-			}
-
-			if((updateSource | UpdateType.Update1 | UpdateType.Update10 | UpdateType.Update100) != 0) {
-
-				if(TargetConnectorExists) {
-
-					// Connect if possible.
-					if(Connector.Status == MyShipConnectorStatus.Connectable) {
-
-						Connector.Connect();
-						TargetConnectorExists = false;
-						Runtime.UpdateFrequency = UpdateFrequency.Update100;
-						Console.WriteLine("Finished docking.");
-
-					} else if(Connector.Status == MyShipConnectorStatus.Connected) {
-
-						TargetConnectorExists = false;
-						Runtime.UpdateFrequency = UpdateFrequency.Update100;
-						Console.WriteLine("Finished docking.");
-
-					} else if(TargetConnectorExists) {
-
-						// Rotate to connect.
-						Quaternion offset;
-						Connector.Orientation.GetQuaternion(out offset);
-						Quaternion current = Quaternion.CreateFromRotationMatrix(Me.CubeGrid.WorldMatrix);
-						Quaternion target = TargetConnectorWorldRotation;
-						bool doneRotate = NavigationHelper.RotateTo(
-							grid: current,
-							target: target * offset,
-							control: control,
-							gyroscopes: Gyroscopes,
-							speed: 2f,
-							echo: null
-						);
-
-						// Move to connect.
-						bool doneMove = NavigationHelper.MoveTo(
-							current: Connector.GetPosition(),
-							target: TargetConnectorWorldPosition + TargetConnectorWorldRotation * (Vector3.Forward * ApproachDistance),
-							velocity: TargetConnectorWorldVelocity,
-							thrusters: Thrusters,
-							control: control,
-							speed: 50f,
-							echo: Echo
-						);
-
-					}
-
-				}
-
-			}
+			if(updateSource.HasFlag(UpdateType.IGC))
+				UpdateFromAntenna();
+			if(updateSource.HasFlag(UpdateType.Update1) || updateSource.HasFlag(UpdateType.Update10) || updateSource.HasFlag(UpdateType.Update100))
+				UpdateFromClock();
 
 			Console.Apply();
 
+		}
+
+		private bool TryFindConnector() {
+
+			var connectors = new List<IMyShipConnector>();
+			GridTerminalSystem.GetBlocksOfType(connectors, _connector => _connector.CubeGrid == Me.CubeGrid);
+
+			if(connectors.Count == 0) {
+				Echo("Cannot find a connector to use.");
+				return true;
+			} else {
+				Connector = connectors[0];
+				return false;
+			}
+
+		}
+
+		private bool TryFindControl() {
+
+			var controls = new List<IMyRemoteControl>();
+			GridTerminalSystem.GetBlocksOfType(controls, _control => _control.CubeGrid == Me.CubeGrid);
+
+			if(controls.Count == 0) {
+				Echo("Cannot find a remote control to use.");
+				return true;
+			} else {
+				Control = controls[0];
+				return false;
+			}
+
+		}
+
+		private void UpdateFromClock() {
+
+			// Stop if there is no target.
+			if(!TargetConnectorExists) return;
+
+			// Get properties as local variables.
+			IMyRemoteControl control = Control;
+			IMyShipConnector connector = Connector;
+
+			// Connect if possible.
+			if(connector.Status == MyShipConnectorStatus.Connectable) {
+
+				connector.Connect();
+				FinishedDocking();
+				return;
+
+			} else if(connector.Status == MyShipConnectorStatus.Connected) {
+
+				FinishedDocking();
+				return;
+
+			}
+
+			// Rotate to connect.
+			Quaternion offset;
+			connector.Orientation.GetQuaternion(out offset);
+			Quaternion current = Quaternion.CreateFromRotationMatrix(Me.CubeGrid.WorldMatrix);
+			Quaternion target = TargetConnectorWorldRotation;
+			bool doneRotate = NavigationHelper.RotateTo(
+				grid: current,
+				target: target * offset,
+				control: control,
+				gyroscopes: Gyroscopes,
+				speed: 2f,
+				echo: null
+			);
+
+			// Move to connect.
+			bool doneMove = NavigationHelper.MoveTo(
+				current: connector.GetPosition(),
+				target: TargetConnectorWorldPosition + TargetConnectorWorldRotation * (Vector3.Forward * ApproachDistance),
+				velocity: TargetConnectorWorldVelocity,
+				thrusters: Thrusters,
+				control: control,
+				speed: 50f,
+				echo: Echo
+			);
+
+		}
+
+		private void FinishedDocking() {
+			TargetConnectorExists = false;
+			Runtime.UpdateFrequency = UpdateFrequency.Update100;
+			Console.WriteLine("Finished docking.");
+		}
+
+		private void UpdateFromAntenna() {
+
+			while(IGC.UnicastListener.HasPendingMessage) {
+				AcceptNextMessage();
+			}
+
+		}
+
+		private void AcceptNextMessage() {
+
+			MyIGCMessage message = IGC.UnicastListener.AcceptMessage();
+			switch(message.Tag) {
+				case Communicator.tagDockAccept:
+					DockAccept(message);
+					break;
+				case Communicator.tagDockUpdate:
+					DockUpdate(message);
+					break;
+			}
+
+		}
+
+		private void DockUpdate(MyIGCMessage message) {
+
+			// Parse the message data using my communication library.
+			// Stop if parsing failed.
+			Vector3D connectorPosition;
+			Quaternion connectorRotation;
+			Vector3 connectorVelocity;
+			if(!Communicator.ParseDockUpdateMessageData(message.Data as string, out connectorPosition, out connectorRotation, out connectorVelocity)) {
+				Console.WriteLine("Failed to parse dock update message.");
+				Console.WriteLine(message.Data);
+				return;
+			}
+
+			// Stop if target does not exist.
+			if(!TargetConnectorExists) {
+				Console.WriteLine("Recieved dock update before the dock order.");
+				return;
+			}
+
+			Runtime.UpdateFrequency = UpdateFrequency.Update1;
+			UpdateTargetConnector(connectorPosition, connectorRotation, connectorVelocity);
+
+		}
+
+		private void DockAccept(MyIGCMessage message) {
+
+			float clearance;
+			if(!Communicator.ParseDockAcceptMessageData(message.Data as string, out clearance)) {
+				Console.WriteLine("Failed to parse dock accept message.");
+				Console.WriteLine(message.Data);
+			}
+
+			GridTerminalSystem.GetBlocksOfType(Gyroscopes, gyroscope => gyroscope.CubeGrid == Me.CubeGrid);
+			GridTerminalSystem.GetBlocksOfType(Thrusters, thruster => thruster.Enabled && thruster.CubeGrid == Me.CubeGrid);
+
+			TargetConnectorExists = true;
+			TargetConnectorClearance = clearance;
+			Console.WriteLine("Docking request accepted.");
+
+		}
+
+		private void UpdateTargetConnector(Vector3D position, Quaternion rotation, Vector3 velocity) {
+			TargetConnectorWorldRotation = rotation;
+			TargetConnectorWorldPosition = position;
+			TargetConnectorWorldVelocity = velocity;
 		}
 
 	}

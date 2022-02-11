@@ -70,116 +70,13 @@ namespace IngameScript {
 			Console = new ConsoleHelper(Me.GetSurface(0));
 
 			// Load from storage.
-			if(!string.IsNullOrWhiteSpace(Storage)) {
-
-				try {
-
-					string storage = Storage;
-
-					var links = new LinkedList<char>();
-					for(int i = 0; i < storage.Length; i++) {
-
-						if(storage[i] == '=') {
-
-							char[] array = links.ToArray();
-							string section = new string(array);
-							links.Clear();
-
-							switch(section) {
-
-								case "docking": {
-									var element = new LinkedList<char>();
-									var elements = new LinkedList<string>();
-									while(++i < storage.Length) {
-										if(storage[i] == ',') element.AddLast(storage[i]);
-										else if(storage[i] == '}') break;
-										else element.AddLast(storage[i]);
-									}
-									LinkedListNode<string> elem = elements.First;
-									int count = elements.Count;
-									DockingDrone[] drones = new DockingDrone[count / 3];
-									for(int j = 0; j < count; j += 3) {
-										long address = long.Parse(elem.Value);
-										elem = elem.Next;
-										long connector = long.Parse(elem.Value);
-										elem = elem.Next;
-										uint ticks = uint.Parse(elem.Value);
-										elem = elem.Next;
-										drones[j / 3] = new DockingDrone(address, connector, ticks, GridTerminalSystem);
-									}
-									DockingDrones = new LinkedList<DockingDrone>(drones);
-									break;
-								}
-
-								case "dockingQ": {
-									var element = new LinkedList<char>();
-									var elements = new LinkedList<string>();
-									while(++i < storage.Length) {
-										if(storage[i] == ',') element.AddLast(storage[i]);
-										else if(storage[i] == '}') break;
-										else element.AddLast(storage[i]);
-									}
-									LinkedListNode<string> elem = elements.First;
-									int count = elements.Count;
-									DockingDrone[] drones = new DockingDrone[count / 3];
-									for(int j = 0; j < count; j += 3) {
-										long address = long.Parse(elem.Value);
-										elem = elem.Next;
-										long connector = long.Parse(elem.Value);
-										elem = elem.Next;
-										uint ticks = uint.Parse(elem.Value);
-										elem = elem.Next;
-										drones[j / 3] = new DockingDrone(address, connector, ticks, GridTerminalSystem);
-									}
-									QueuedDockingDrones = new Queue<DockingDrone>(drones);
-									break;
-								}
-
-								case "takenConnectors": {
-									var element = new LinkedList<char>();
-									var elements = new LinkedList<string>();
-									while(++i < storage.Length) {
-										if(storage[i] == ',') element.AddLast(storage[i]);
-										else if(storage[i] == '}') break;
-										else element.AddLast(storage[i]);
-									}
-									LinkedListNode<string> elem = elements.First;
-									int count = elements.Count;
-									IMyShipConnector[] connectors = new IMyShipConnector[count];
-									for(int j = 0; j < count; j += 3) {
-										long id = long.Parse(elem.Value);
-										elem = elem.Next;
-										connectors[j] = GridTerminalSystem.GetBlockWithId(id) as IMyShipConnector;
-									}
-									TakenConnectors = new HashSet<IMyShipConnector>(connectors);
-									break;
-								}
-
-								default: {
-									Console.WriteLine($"Unknown storage section '{section}'.");
-									break;
-								}
-
-							}
-
-						} else {
-
-							links.AddLast(storage[i]);
-
-						}
-
-					}
-
-					Console.WriteLine("Loaded from storage.");
-
-				} catch(Exception e) {
-
-					Console.WriteLine("Error loading from storage.");
-					Console.WriteLine(e.GetType().Name);
-
-				}
-
-			}
+			ICollection<DockingDrone> dockingDrones;
+			Queue<DockingDrone> queuedDockingDrones;
+			HashSet<IMyShipConnector> takenConnectors;
+			LoadStorage(out dockingDrones, out queuedDockingDrones, out takenConnectors);
+			DockingDrones = dockingDrones ?? new LinkedList<DockingDrone>();
+			QueuedDockingDrones = queuedDockingDrones ?? new Queue<DockingDrone>();
+			TakenConnectors = takenConnectors ?? new HashSet<IMyShipConnector>();
 
 			// Set update frequency.
 			Runtime.UpdateFrequency = UpdateFrequency.Update1;
@@ -191,6 +88,136 @@ namespace IngameScript {
 			Console.WriteLine("Program constructed.");
 			Console.Apply();
 
+		}
+
+		private void LoadStorage(out ICollection<DockingDrone> dockingDrones, out Queue<DockingDrone> dockingDronesQueue, out HashSet<IMyShipConnector> takenConnectors) {
+
+			dockingDrones = null;
+			dockingDronesQueue = null;
+			takenConnectors = null;
+
+			if(string.IsNullOrWhiteSpace(Storage)) {
+				return;
+			}
+
+			try {
+
+				string storage = Storage;
+				int length = storage.Length;
+
+				var links = new LinkedList<char>();
+				for(int i = 0; i < length; i++) {
+					if(storage[i] == '=') LoadStorageSection(ref dockingDrones, ref dockingDronesQueue, ref takenConnectors, links, ref i);
+					else links.AddLast(storage[i]);
+				}
+
+				Console.WriteLine("Loaded from storage.");
+
+			}
+			catch(Exception e) {
+
+				Console.WriteLine("Error loading from storage.");
+				Console.WriteLine(e.GetType().Name);
+
+			}
+
+		}
+
+		private void LoadStorageSection(ref ICollection<DockingDrone> dockingDrones, ref Queue<DockingDrone> dockingDronesQueue, ref HashSet<IMyShipConnector> takenConnectors, LinkedList<char> links, ref int i) {
+
+			char[] array = links.ToArray();
+			string section = new string(array);
+			links.Clear();
+
+			switch(section) {
+				case "docking":
+					dockingDrones = LoadDockingStorage(ref i);
+					break;
+				case "dockingQ":
+					dockingDronesQueue = LoadDockingQueueStorage(ref i);
+					break;
+				case "takenConnectors":
+					takenConnectors = LoadTakenConnectorsStorage(ref i);
+					break;
+				default:
+					Console.WriteLine($"Unknown storage section '{section}'.");
+					break;
+			}
+
+		}
+
+		private ICollection<DockingDrone> LoadDockingStorage(ref int i) {
+			string storage = Storage;
+			ICollection<DockingDrone> dockingDrones;
+			var element = new LinkedList<char>();
+			var elements = new LinkedList<string>();
+			while(++i < storage.Length) {
+				if(storage[i] == ',') element.AddLast(storage[i]);
+				else if(storage[i] == '}') break;
+				else element.AddLast(storage[i]);
+			}
+			LinkedListNode<string> elem = elements.First;
+			int count = elements.Count;
+			DockingDrone[] drones = new DockingDrone[count / 3];
+			for(int j = 0; j < count; j += 3) {
+				long address = long.Parse(elem.Value);
+				elem = elem.Next;
+				long connector = long.Parse(elem.Value);
+				elem = elem.Next;
+				uint ticks = uint.Parse(elem.Value);
+				elem = elem.Next;
+				drones[j / 3] = new DockingDrone(address, connector, ticks, GridTerminalSystem);
+			}
+			dockingDrones = new LinkedList<DockingDrone>(drones);
+			return dockingDrones;
+		}
+
+		private Queue<DockingDrone> LoadDockingQueueStorage(ref int i) {
+			string storage = Storage;
+			Queue<DockingDrone> dockingDronesQueue;
+			var element = new LinkedList<char>();
+			var elements = new LinkedList<string>();
+			while(++i < storage.Length) {
+				if(storage[i] == ',') element.AddLast(storage[i]);
+				else if(storage[i] == '}') break;
+				else element.AddLast(storage[i]);
+			}
+			LinkedListNode<string> elem = elements.First;
+			int count = elements.Count;
+			DockingDrone[] drones = new DockingDrone[count / 3];
+			for(int j = 0; j < count; j += 3) {
+				long address = long.Parse(elem.Value);
+				elem = elem.Next;
+				long connector = long.Parse(elem.Value);
+				elem = elem.Next;
+				uint ticks = uint.Parse(elem.Value);
+				elem = elem.Next;
+				drones[j / 3] = new DockingDrone(address, connector, ticks, GridTerminalSystem);
+			}
+			dockingDronesQueue = new Queue<DockingDrone>(drones);
+			return dockingDronesQueue;
+		}
+
+		private HashSet<IMyShipConnector> LoadTakenConnectorsStorage(ref int i) {
+			string storage = Storage;
+			HashSet<IMyShipConnector> takenConnectors;
+			var element = new LinkedList<char>();
+			var elements = new LinkedList<string>();
+			while(++i < storage.Length) {
+				if(storage[i] == ',') element.AddLast(storage[i]);
+				else if(storage[i] == '}') break;
+				else element.AddLast(storage[i]);
+			}
+			LinkedListNode<string> elem = elements.First;
+			int count = elements.Count;
+			IMyShipConnector[] connectors = new IMyShipConnector[count];
+			for(int j = 0; j < count; j += 3) {
+				long id = long.Parse(elem.Value);
+				elem = elem.Next;
+				connectors[j] = GridTerminalSystem.GetBlockWithId(id) as IMyShipConnector;
+			}
+			takenConnectors = new HashSet<IMyShipConnector>(connectors);
+			return takenConnectors;
 		}
 
 
@@ -271,32 +298,14 @@ namespace IngameScript {
 			List<IMyShipConnector> connectors = null;
 
 			// Cancel dockings that take too long.
-			{
-				foreach(DockingDrone drone in DockingDrones.ToArray()) {
-					drone.Tick();
-					if(drone.Ticks > 7200) {
-						DockingDrones.Remove(drone);
-						TakenConnectors.Remove(drone.Connector);
-						if(QueuedDockingDrones.Count > 0) {
-							DockingDrones.Add(QueuedDockingDrones.Dequeue());
-						}
-					}
-				}
+			foreach(DockingDrone drone in DockingDrones.ToArray()) {
+				drone.Tick();
+				if(drone.Ticks > 7200) TimeoutDockingDrone(drone);
 			}
 
 			// Send messages.
-			{
-				foreach(DockingDrone drone in DockingDrones.ToArray()) {
-					Quaternion rotation = Quaternion.CreateFromRotationMatrix(drone.Connector.WorldMatrix);
-					Vector3 velocity = Vector3.Zero;
-					var data = Communicator.MakeDockUpdateMessageData(drone.Connector.GetPosition(), rotation, velocity);
-					if(IGC.SendUnicastMessage(drone.Address, Communicator.tagDockUpdate, data)) MessagesOut++;
-					else {
-						// TEMP: Remove drone if disconnected.
-						DockingDrones.Remove(drone);
-						TakenConnectors.Remove(drone.Connector);
-					}
-				}
+			foreach(DockingDrone drone in DockingDrones.ToArray()) {
+				SendMessageToDrone(drone);
 			}
 
 			// Recieve messages.
@@ -304,47 +313,9 @@ namespace IngameScript {
 
 				MessagesIn++;
 				switch(message.Tag) {
-
-					case Communicator.tagDockRequest: {
-
-						// Find closest connector.
-						if(connectors == null) connectors = Connectors;
-						Vector3D location;
-						if(!Communicator.ParseDockRequestMessageData(message.Data as string, out location)) break;
-
-						IMyShipConnector closest = null;
-						double distanceSquared = double.PositiveInfinity;
-						foreach(IMyShipConnector connector in connectors) {
-							// Skip taken connectors.
-							if(TakenConnectors.Contains(connector)) continue;
-							// Find closest connector that is available.
-							double dist = (connector.GetPosition() - location).LengthSquared();
-							if(dist < distanceSquared) {
-								distanceSquared = dist;
-								closest = connector;
-							}
-						}
-
-						if(closest == null) {
-							break;
-						}
-
-						// Mark connector as used.
-						TakenConnectors.Add(closest);
-						DockingDrones.Add(new DockingDrone(message.Source, closest));
-
-						// Send message back.
-						float length = (Base6Directions.GetIntVector(Base6Directions.Direction.Forward) * closest.Max).AbsMax();
-						var data = Communicator.MakeDockAcceptMessageData(length);
-						if(IGC.SendUnicastMessage(message.Source, Communicator.tagDockAccept, data)) {
-							MessagesOut++;
-							break;
-						} else {
-							break;
-						}
-
-					}
-
+					case Communicator.tagDockRequest:
+						DockRequestMessage(ref connectors, message);
+						break;
 				}
 
 				if(CurrentRuntimeNs > TargetRuntimeNs) break;
@@ -354,6 +325,67 @@ namespace IngameScript {
 			Console.Apply();
 			Echo($"Total Messages: {MessagesIn:N0} in / {MessagesOut:N0} out.");
 
+		}
+
+		private void DockRequestMessage(ref List<IMyShipConnector> connectors, MyIGCMessage message) {
+
+			// Find closest connector.
+			if(connectors == null) connectors = Connectors;
+			Vector3D location;
+			if(!Communicator.ParseDockRequestMessageData(message.Data as string, out location)) {
+				return;
+			}
+
+			IMyShipConnector closest = null;
+			double distanceSquared = double.PositiveInfinity;
+			foreach(IMyShipConnector connector in connectors) {
+				// Skip taken connectors.
+				if(TakenConnectors.Contains(connector)) {
+					continue;
+				}
+				// Find closest connector that is available.
+				double dist = (connector.GetPosition() - location).LengthSquared();
+				if(dist < distanceSquared) {
+					distanceSquared = dist;
+					closest = connector;
+				}
+			}
+
+			if(closest == null) {
+				return;
+			}
+
+			// Mark connector as used.
+			TakenConnectors.Add(closest);
+			DockingDrones.Add(new DockingDrone(message.Source, closest));
+
+			// Send message back.
+			float length = (Base6Directions.GetIntVector(Base6Directions.Direction.Forward) * closest.Max).AbsMax();
+			var data = Communicator.MakeDockAcceptMessageData(length);
+			if(IGC.SendUnicastMessage(message.Source, Communicator.tagDockAccept, data)) {
+				MessagesOut++;
+			}
+
+		}
+
+		private void TimeoutDockingDrone(DockingDrone drone) {
+			DockingDrones.Remove(drone);
+			TakenConnectors.Remove(drone.Connector);
+			if(QueuedDockingDrones.Count > 0) {
+				DockingDrones.Add(QueuedDockingDrones.Dequeue());
+			}
+		}
+
+		private void SendMessageToDrone(DockingDrone drone) {
+			Quaternion rotation = Quaternion.CreateFromRotationMatrix(drone.Connector.WorldMatrix);
+			Vector3 velocity = Vector3.Zero;
+			var data = Communicator.MakeDockUpdateMessageData(drone.Connector.GetPosition(), rotation, velocity);
+			if(IGC.SendUnicastMessage(drone.Address, Communicator.tagDockUpdate, data)) MessagesOut++;
+			else {
+				// TEMP: Remove drone if disconnected.
+				DockingDrones.Remove(drone);
+				TakenConnectors.Remove(drone.Connector);
+			}
 		}
 
 		struct DockingDrone {

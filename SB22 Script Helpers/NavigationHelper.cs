@@ -85,7 +85,7 @@ namespace Sb22.ScriptHelpers {
 			float angleZ = (float)Math.Acos(alignedZ.Z / alignedZ.Length());
 			Vector3 crossZ = new Vector3(+alignedZ.Y, -alignedZ.X, 0f);
 			if(crossZ.Normalize() > 0.001f) crossZ *= angleZ * speed;
-			else { crossZ = Vector3D.Zero; sittingZ = true; }
+			else { crossZ = Vector3.Zero; sittingZ = true; }
 
 			if(sittingY && sittingZ) return true;
 
@@ -137,7 +137,7 @@ namespace Sb22.ScriptHelpers {
 		/// <returns><see langword="true"/> if sitting on the target with desired velocity; <see langword="false"/> if still adjusting and/or moving.</returns>
 		/// <remarks>
 		/// <para>
-		/// Will reach the destination within a 0.5m (1 small grid block) radius. Uses <see href="https://en.wikipedia.org/wiki/Vector_projection">vector projection and rejection</see> to determine the forces to apply.
+		/// Will reach the destination within a 0.5m (1 small grid length) radius. Uses <see href="https://en.wikipedia.org/wiki/Vector_projection">vector projection and rejection</see> to determine the forces to apply.
 		/// Therefore, if the grid is facing the target without any rejected velocity then only forwards/backwards thrusters will be used.
 		/// Otherwise, not having enough thrusters in every direction is insufficient.
 		/// </para>
