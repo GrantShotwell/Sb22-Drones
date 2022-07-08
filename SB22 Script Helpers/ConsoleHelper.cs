@@ -28,16 +28,21 @@ namespace Sb22.ScriptHelpers {
 		private RollingList<string> Lines { get; }
 
 
-		public ConsoleHelper(IMyTextSurface textSurface) {
+		public ConsoleHelper(IMyTextSurface textSurface, float fontSize = 0.95f, int maxLines = 11) {
 			TextSurface = textSurface;
-			textSurface.FontSize = 0.95f;
+			textSurface.FontSize = fontSize;
 			textSurface.ContentType = ContentType.TEXT_AND_IMAGE;
-			Lines = new RollingList<string>(MaxLines = 11);
+			Lines = new RollingList<string>(MaxLines = maxLines);
 		}
 
 
 		public void WriteLine(object value) {
 			Lines.Insert(value.ToString() + '\n');
+		}
+
+		public void WriteLine(params object[] values) {
+			foreach(object value in values)
+				WriteLine(value);
 		}
 
 		public void Apply() {

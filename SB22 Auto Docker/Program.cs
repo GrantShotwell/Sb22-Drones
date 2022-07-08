@@ -23,7 +23,7 @@ using Sb22.Drones;
 namespace IngameScript {
 
 	/// <summary>
-	/// 
+	/// Auto Docker
 	/// </summary>
 	partial class Program : MyGridProgram {
 
@@ -122,8 +122,7 @@ namespace IngameScript {
 			}
 			catch(Exception e) {
 
-				Console.WriteLine($"Error loading values from storage. ({elements.Length})");
-				Console.WriteLine(e.GetType().Name);
+				Console.WriteLine($"Error loading values from storage (length={elements.Length}).", e.GetType().Name);
 
 			}
 
@@ -140,8 +139,7 @@ namespace IngameScript {
 
 				string[] split = setting.Split('=');
 				if(split.Length != 2) {
-					Console.WriteLine("Could not split setting:");
-					Console.WriteLine(setting);
+					Console.WriteLine("Could not split setting:", setting);
 					continue;
 				}
 
@@ -151,15 +149,12 @@ namespace IngameScript {
 				switch(name) {
 
 					case "storageLoad":
-						if(!bool.TryParse(data, out storageLoad)) {
-							Console.WriteLine("Could not parse setting data into bool:");
-							Console.WriteLine(setting);
-						}
+						if(!bool.TryParse(data, out storageLoad))
+							Console.WriteLine("Could not parse setting data into bool:", setting);
 						break;
 
 					default:
-						Console.WriteLine("Unknown setting:");
-						Console.WriteLine(setting);
+						Console.WriteLine("Unknown setting:", setting);
 						break;
 
 				}
@@ -209,27 +204,12 @@ namespace IngameScript {
 				return;
 
 			switch(argument) {
-
 				case "undock":
-
-					if(Connector.Status == MyShipConnectorStatus.Connected) {
-						Console.WriteLine("Undocking command recieved.");
-					}
-
+					UndockCommand();
 					break;
-
 				case "dock":
-
-					if(Connector.Status != MyShipConnectorStatus.Connected) {
-						var data = Communicator.MakeDockRequestMessageData(Connector.GetPosition());
-						IGC.SendBroadcastMessage(Communicator.tagDockRequest, data, TransmissionDistance.TransmissionDistanceMax);
-						Console.WriteLine("Docking request sent. Waiting for reply.");
-						DockingRequested = true;
-						Runtime.UpdateFrequency = UpdateFrequency.Update10;
-					}
-
+					DockCommand();
 					break;
-
 			}
 
 			if(updateSource.HasFlag(UpdateType.IGC))
@@ -238,6 +218,29 @@ namespace IngameScript {
 				UpdateFromClock();
 
 			Console.Apply();
+
+		}
+
+		private void UndockCommand() {
+
+			if(Connector.Status != MyShipConnectorStatus.Connected)
+				return;
+
+			Console.WriteLine("Undocking command recieved.");
+			//TODO
+
+		}
+
+		private void DockCommand() {
+
+			if(Connector.Status == MyShipConnectorStatus.Connected)
+				return;
+
+			var data = Communicator.MakeDockRequestMessageData(Connector.GetPosition());
+			IGC.SendBroadcastMessage(Communicator.tagDockRequest, data, TransmissionDistance.TransmissionDistanceMax);
+			Console.WriteLine("Docking request sent. Waiting for reply.");
+			DockingRequested = true;
+			Runtime.UpdateFrequency = UpdateFrequency.Update10;
 
 		}
 
@@ -357,8 +360,7 @@ namespace IngameScript {
 			Quaternion connectorRotation;
 			Vector3 connectorVelocity;
 			if(!Communicator.ParseDockUpdateMessageData(message.Data as string, out connectorPosition, out connectorRotation, out connectorVelocity)) {
-				Console.WriteLine("Failed to parse dock update message.");
-				Console.WriteLine(message.Data);
+				Console.WriteLine("Failed to parse dock update message.", message.Data);
 				return;
 			}
 
@@ -376,10 +378,8 @@ namespace IngameScript {
 		private void DockAccept(MyIGCMessage message) {
 
 			float clearance;
-			if(!Communicator.ParseDockAcceptMessageData(message.Data as string, out clearance)) {
-				Console.WriteLine("Failed to parse dock accept message.");
-				Console.WriteLine(message.Data);
-			}
+			if(!Communicator.ParseDockAcceptMessageData(message.Data as string, out clearance))
+				Console.WriteLine("Failed to parse dock accept message.", message.Data);
 
 			GridTerminalSystem.GetBlocksOfType(Gyroscopes, gyroscope => gyroscope.CubeGrid == Me.CubeGrid);
 			GridTerminalSystem.GetBlocksOfType(Thrusters, thruster => thruster.Enabled && thruster.CubeGrid == Me.CubeGrid);

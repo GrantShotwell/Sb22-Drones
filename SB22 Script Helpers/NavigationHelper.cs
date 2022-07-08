@@ -65,15 +65,16 @@ namespace Sb22.ScriptHelpers {
 			Vector3 alignedY = q * new Vector3(0f, 1f, 0f);
 			Vector3 alignedZ = q * new Vector3(0f, 0f, 1f);
 
-			// Gyroscopes don't use pitch, yaw, and roll. Instead, they take rotation vectors.
-			// For each axis to align we need the cross product of current and target
-			// with a length of rotation speed (directly proportional to angle).
-
-			// Angle between two vectors:
-			// θ = cos⁻¹((a·b)/(|a|·|b|))
-
-			// Gyroscope rotation speed input is in radians per second.
-			// Angle is already in radians, so we don't have to do anything there!
+			/* Gyroscopes don't use pitch, yaw, and roll. Instead, they take rotation vectors.
+			 * For each axis to align we need the cross product of current and target
+			 * with a length of rotation speed (directly proportional to angle).
+			 * 
+			 * Angle between two vectors:
+			 * θ = cos⁻¹((a·b)/(|a|·|b|))
+			 * 
+			 * Gyroscope rotation speed input is in radians per second.
+			 * Angle is already in radians, so we don't have to do anything there!
+			 */
 
 			bool sittingY = false;
 			float angleY = (float)Math.Acos(alignedY.Y / alignedY.Length());
@@ -137,13 +138,14 @@ namespace Sb22.ScriptHelpers {
 		/// <returns><see langword="true"/> if sitting on the target with desired velocity; <see langword="false"/> if still adjusting and/or moving.</returns>
 		/// <remarks>
 		/// <para>
-		/// Will reach the destination within a 0.5m (1 small grid length) radius. Uses <see href="https://en.wikipedia.org/wiki/Vector_projection">vector projection and rejection</see> to determine the forces to apply.
+		/// Will reach the destination within a 0.5m (1 small grid length) radius.
+		/// Uses <see href="https://en.wikipedia.org/wiki/Vector_projection">vector projection and rejection</see> to determine the forces to apply.
 		/// Therefore, if the grid is facing the target without any rejected velocity then only forwards/backwards thrusters will be used.
 		/// Otherwise, not having enough thrusters in every direction is insufficient.
 		/// </para>
 		/// <para>
 		/// When a thruster is not needed, it is disabled. When it is, it is enabled.
-		/// Because of this, make sure <paramref name="thrusters"/> was created by checking if the thruster is <see cref="IMyFunctionalBlock.Enabled"/>.
+		/// Because of this, make sure <paramref name="thrusters"/> was created by checking if each thruster is <see cref="IMyFunctionalBlock.Enabled"/>.
 		/// That way, the ship pilot can enable/disable backup hydrogen thrusters, for example, and not have them re-enabled by this method.
 		/// </para>
 		/// <para>
@@ -182,7 +184,7 @@ namespace Sb22.ScriptHelpers {
 
 			// Do we need to sit?
 			if(velocity == Vector3.Zero && s < sitRadius) {
-				if(echo != null) echo("Sitting.");
+				echo?.Invoke("Sitting.");
 				RemoveOverride(thrusters);
 				return true;
 			}
@@ -192,8 +194,9 @@ namespace Sb22.ScriptHelpers {
 			foreach(IMyThrust thruster in thrusters) {
 				if(!thruster.Enabled) continue;
 
-				// Magnitude of dot product will be positive when the vectors are similar.
-				// Madnitude will be negative when the vectors are otherwise opposite.
+				/* Magnitude of dot product will be positive when the vectors are similar.
+				 * Magnitude will be negative when the vectors are otherwise opposite.
+				 */
 
 				float thrust = Vector3.Dot(direction, thruster.WorldMatrix.Backward) * thruster.MaxEffectiveThrust;
 				if(thrust > 0) accelForce += thrust;
@@ -248,21 +251,33 @@ namespace Sb22.ScriptHelpers {
 			foreach(IMyThrust thruster in thrusters) {
 				if(!thruster.Enabled) continue;
 				bool overridden = false;
-				
-				// Magnitude of dot product is proportional magnutide of both vectors multiplied.
-				// In this case, one of the vectors is a length of one.
+
+				/* Magnitude of dot product is proportional magnutide of both vectors multiplied.
+				 * In this case, one of the vectors is a length of one.
+				 */
 
 				// Apply project thrust.
 				float f = Vector3.Dot(F, thruster.WorldMatrix.Backward);
-				if(f > 0f) { thruster.ThrustOverride = f; overridden = true; }
+				if(f > 0f) {
+					thruster.ThrustOverride = f;
+					overridden = true;
+				}
 
 				// Apply reject thrust.
 				float w = Vector3.Dot(W, thruster.WorldMatrix.Backward);
-				if(w > 0f) { thruster.ThrustOverride = w; overridden = true; }
+				if(w > 0f) {
+					thruster.ThrustOverride = w;
+					overridden = true;
+				}
 
 				// Remember to disable override!
-				if(!overridden) { thruster.ThrustOverride = 0f; thruster.Enabled = false; }
-				if(echo != null) echo($"{thruster.CustomName}: {thruster.ThrustOverride * 1e-3:N1}kN");
+				if(!overridden) {
+					thruster.ThrustOverride = 0f;
+					thruster.Enabled = false;
+				}
+
+				// Debug output thruster names and their overrides.
+				echo?.Invoke($"{thruster.CustomName}: {thruster.ThrustOverride * 1e-3:N1}kN");
 
 			}
 

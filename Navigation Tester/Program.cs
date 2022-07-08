@@ -21,6 +21,10 @@ using Sb22.ScriptHelpers;
 using Sb22.Drones;
 
 namespace IngameScript {
+
+	/// <summary>
+	/// Navigation Tester
+	/// </summary>
 	partial class Program : MyGridProgram {
 
 		public Program() {
@@ -51,4 +55,5 @@ namespace IngameScript {
 		}
 
 	}
+
 }

@@ -23,7 +23,7 @@ using Sb22.Drones;
 namespace IngameScript {
 
 	/// <summary>
-	/// 
+	/// Rammer Drone
 	/// </summary>
 	partial class Program : MyGridProgram {
 
