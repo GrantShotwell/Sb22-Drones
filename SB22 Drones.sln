@@ -15,6 +15,8 @@ Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "SB22 Script Helpers", "SB22
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Navigation Tester", "Navigation Tester\Navigation Tester.csproj", "{46C8E6F0-5576-4A75-AD40-6E50F108261F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SB22 Follow Drone", "SB22 Follow Drone\SB22 Follow Drone.csproj", "{D1C007DF-3994-4E19-B20C-6E77F57B7CA8}"
+EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		SB22 Drone Library\SB22 Drone Library.projitems*{08ac1676-cd52-4613-8d40-8e15b2f53403}*SharedItemsImports = 4
@@ -27,6 +29,8 @@ Global
 		SB22 Script Helpers\SB22 Script Helpers.projitems*{67aa7472-5d58-46c9-bfba-9697b19f4d81}*SharedItemsImports = 13
 		SB22 Drone Library\SB22 Drone Library.projitems*{b01aac44-b38a-44d7-83a2-ae644326b906}*SharedItemsImports = 4
 		SB22 Script Helpers\SB22 Script Helpers.projitems*{b01aac44-b38a-44d7-83a2-ae644326b906}*SharedItemsImports = 4
+		SB22 Drone Library\SB22 Drone Library.projitems*{d1c007df-3994-4e19-b20c-6e77f57b7ca8}*SharedItemsImports = 4
+		SB22 Script Helpers\SB22 Script Helpers.projitems*{d1c007df-3994-4e19-b20c-6e77f57b7ca8}*SharedItemsImports = 4
 	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -40,6 +44,8 @@ Global
 		{B01AAC44-B38A-44D7-83A2-AE644326B906}.Debug|x64.Build.0 = Debug|x64
 		{46C8E6F0-5576-4A75-AD40-6E50F108261F}.Debug|x64.ActiveCfg = Debug|x64
 		{46C8E6F0-5576-4A75-AD40-6E50F108261F}.Debug|x64.Build.0 = Debug|x64
+		{D1C007DF-3994-4E19-B20C-6E77F57B7CA8}.Debug|x64.ActiveCfg = Debug|x64
+		{D1C007DF-3994-4E19-B20C-6E77F57B7CA8}.Debug|x64.Build.0 = Debug|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
