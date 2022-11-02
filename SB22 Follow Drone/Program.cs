@@ -197,23 +197,20 @@ namespace IngameScript {
 
 			bool error = false;
 			if(Connector == null)
-				error |= TryFindConnector();
+				error |= !TryFindTarget();
 			if(Control == null)
-				error |= TryFindControl();
+				error |= !TryFindControl();
 			if(error)
 				return;
 
 			switch(argument) {
-				case "undock":
-					UndockCommand();
-					break;
-				case "dock":
-					DockCommand();
+				// No supported arguments.
+				default:
 					break;
 			}
 
-			if(updateSource.HasFlag(UpdateType.IGC))
-				UpdateFromAntenna();
+			//if(updateSource.HasFlag(UpdateType.IGC))
+			//	UpdateFromAntenna();
 			if(updateSource.HasFlag(UpdateType.Update1) || updateSource.HasFlag(UpdateType.Update10) || updateSource.HasFlag(UpdateType.Update100))
 				UpdateFromClock();
 
@@ -221,41 +218,13 @@ namespace IngameScript {
 
 		}
 
-		private void UndockCommand() {
+		private void UpdateFromClock() {
 
-			if(Connector.Status != MyShipConnectorStatus.Connected)
-				return;
+			// Stop if there is no target.
+			if(!TargetConnectorExists) return;
 
-			Console.WriteLine("Undocking command recieved.");
-			//TODO
-
-		}
-
-		private void DockCommand() {
-
-			if(Connector.Status == MyShipConnectorStatus.Connected)
-				return;
-
-			var data = Communicator.MakeDockRequestMessageData(Connector.GetPosition());
-			IGC.SendBroadcastMessage(Communicator.tagDockRequest, data, TransmissionDistance.TransmissionDistanceMax);
-			Console.WriteLine("Docking request sent. Waiting for reply.");
-			DockingRequested = true;
-			Runtime.UpdateFrequency = UpdateFrequency.Update10;
-
-		}
-
-		private bool TryFindConnector() {
-
-			var connectors = new List<IMyShipConnector>();
-			GridTerminalSystem.GetBlocksOfType(connectors, _connector => _connector.CubeGrid == Me.CubeGrid);
-
-			if(connectors.Count == 0) {
-				Echo("Cannot find a connector to use.");
-				return true;
-			} else {
-				Connector = connectors[0];
-				return false;
-			}
+			// Move to follow the target.
+			// TODO
 
 		}
 
@@ -266,133 +235,17 @@ namespace IngameScript {
 
 			if(controls.Count == 0) {
 				Echo("Cannot find a remote control to use.");
-				return true;
+				return false;
 			} else {
 				Control = controls[0];
-				return false;
+				return true;
 			}
 
 		}
 
-		private void UpdateFromClock() {
-
-			// Stop if there is no target.
-			if(!TargetConnectorExists) return;
-
-			// Get properties as local variables.
-			IMyRemoteControl control = Control;
-			IMyShipConnector connector = Connector;
-
-			// Connect if possible.
-			if(connector.Status == MyShipConnectorStatus.Connectable) {
-
-				connector.Connect();
-				FinishedDocking();
-				return;
-
-			} else if(connector.Status == MyShipConnectorStatus.Connected) {
-
-				FinishedDocking();
-				return;
-
-			}
-
-			// Rotate to connect.
-			Quaternion offset;
-			connector.Orientation.GetQuaternion(out offset);
-			Quaternion current = Quaternion.CreateFromRotationMatrix(Me.CubeGrid.WorldMatrix);
-			Quaternion target = TargetConnectorWorldRotation;
-			bool doneRotate = NavigationHelper.RotateTo(
-				grid: current,
-				target: target * offset,
-				gyroscopes: Gyroscopes,
-				speed: 2f,
-				echo: null
-			);
-
-			// Move to connect.
-			bool doneMove = NavigationHelper.MoveTo(
-				current: connector.GetPosition(),
-				target: TargetConnectorWorldPosition + TargetConnectorWorldRotation * (Vector3.Forward * ApproachDistance),
-				velocity: TargetConnectorWorldVelocity,
-				thrusters: Thrusters,
-				control: control,
-				speed: 50f,
-				echo: Echo
-			);
-
-		}
-
-		private void FinishedDocking() {
-			TargetConnectorExists = false;
-			Runtime.UpdateFrequency = UpdateFrequency.Update100;
-			Console.WriteLine("Finished docking.");
-		}
-
-		private void UpdateFromAntenna() {
-
-			while(IGC.UnicastListener.HasPendingMessage) {
-				AcceptNextMessage();
-			}
-
-		}
-
-		private void AcceptNextMessage() {
-
-			MyIGCMessage message = IGC.UnicastListener.AcceptMessage();
-			switch(message.Tag) {
-				case Communicator.tagDockAccept:
-					DockAccept(message);
-					break;
-				case Communicator.tagDockUpdate:
-					DockUpdate(message);
-					break;
-			}
-
-		}
-
-		private void DockUpdate(MyIGCMessage message) {
-
-			// Parse the message data using my communication library.
-			// Stop if parsing failed.
-			Vector3D connectorPosition;
-			Quaternion connectorRotation;
-			Vector3 connectorVelocity;
-			if(!Communicator.ParseDockUpdateMessageData(message.Data as string, out connectorPosition, out connectorRotation, out connectorVelocity)) {
-				Console.WriteLine("Failed to parse dock update message.", message.Data);
-				return;
-			}
-
-			// Stop if target does not exist.
-			if(!TargetConnectorExists) {
-				Console.WriteLine("Recieved dock update before the dock order.");
-				return;
-			}
-
-			Runtime.UpdateFrequency = UpdateFrequency.Update1;
-			UpdateTargetConnector(connectorPosition, connectorRotation, connectorVelocity);
-
-		}
-
-		private void DockAccept(MyIGCMessage message) {
-
-			float clearance;
-			if(!Communicator.ParseDockAcceptMessageData(message.Data as string, out clearance))
-				Console.WriteLine("Failed to parse dock accept message.", message.Data);
-
-			GridTerminalSystem.GetBlocksOfType(Gyroscopes, gyroscope => gyroscope.CubeGrid == Me.CubeGrid);
-			GridTerminalSystem.GetBlocksOfType(Thrusters, thruster => thruster.Enabled && thruster.CubeGrid == Me.CubeGrid);
-
-			TargetConnectorExists = true;
-			TargetConnectorClearance = clearance;
-			Console.WriteLine("Docking request accepted.");
-
-		}
-
-		private void UpdateTargetConnector(Vector3D position, Quaternion rotation, Vector3 velocity) {
-			TargetConnectorWorldRotation = rotation;
-			TargetConnectorWorldPosition = position;
-			TargetConnectorWorldVelocity = velocity;
+		private bool TryFindTarget() {
+			// TODO
+			return false;
 		}
 
 	}

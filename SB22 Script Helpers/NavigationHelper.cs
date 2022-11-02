@@ -30,17 +30,22 @@ namespace Sb22.ScriptHelpers {
 		/// </summary>
 		/// <param name="grid">The current rotation.</param>
 		/// <param name="target">The target rotation.</param>
-		/// <param name="control">A source of grid info to potentially account for when rotating.</param>
 		/// <param name="gyroscopes">The <see cref="IMyGyro"/>s to use to rotate the grid.</param>
 		/// <param name="speed">The rotational speed in rotations per second.</param>
 		/// <param name="echo">An output for debugging.</param>
+		/// 
 		/// <returns><see langword="true"/> if sitting on the target; <see langword="false"/> if still rotating.</returns>
 		/// <remarks>
 		/// <para>Will reach the desired rotation within 0.001π radians (0.18°).</para>
 		/// <para>Made by <see href="https://github.com/SonicBlue22">Grant Shotwell</see>.</para>
 		/// </remarks>
-		public static bool RotateTo(Quaternion grid, Quaternion target, IMyShipController control, ICollection<IMyGyro> gyroscopes,
-		float speed = 1f, Action<string> echo = null) {
+		public static bool RotateTo(
+			Quaternion grid,
+			Quaternion target,
+			ICollection<IMyGyro> gyroscopes,
+			float speed = 1f,
+			Action<string> echo = null
+		) {
 
 			// Normalize quaternions. Don't deal with zeros.
 			if(target == Quaternion.Zero) return true;
@@ -102,7 +107,7 @@ namespace Sb22.ScriptHelpers {
 
 			foreach(IMyGyro gyroscope in gyroscopes) {
 
-				// Get rotation vector.
+				// Get rotation vector (change the axis every loop).
 				Vector3 rotation = (axis = !axis) ? crossZ : crossY;
 				
 				// Rotate rotation vector to fit this gyroscope.
@@ -152,8 +157,16 @@ namespace Sb22.ScriptHelpers {
 		/// Made by <see href="https://github.com/SonicBlue22">Grant Shotwell</see>.
 		/// </para>
 		/// </remarks>
-		public static bool MoveTo(Vector3D current, Vector3D target, ICollection<IMyThrust> thrusters, IMyShipController control,
-		float speed = float.PositiveInfinity, Vector3 velocity = default(Vector3), float delay = 1f / 60f, Action<string> echo = null) {
+		public static bool MoveTo(
+			Vector3D current,
+			Vector3D target,
+			ICollection<IMyThrust> thrusters,
+			IMyShipController control,
+			float speed = float.PositiveInfinity,
+			Vector3 velocity = default(Vector3),
+			float delay = 1f / 60f,
+			Action<string> echo = null
+		) {
 
 			// Local constant
 			float sitRadius = 0.5f;
@@ -285,6 +298,11 @@ namespace Sb22.ScriptHelpers {
 
 		}
 
+		/// <summary>
+		/// Iterates through all thrusters in <paramref name="thrusters"/>
+		/// and disables their <see cref="IMyThrust.ThrustOverride"/>.
+		/// </summary>
+		/// <param name="thrusters"><see cref="IMyThrust"/> objects to disable override.</param>
 		public static void RemoveOverride(ICollection<IMyThrust> thrusters) {
 			foreach(IMyThrust thruster in thrusters) {
 				thruster.Enabled = true;
