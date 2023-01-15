@@ -173,7 +173,7 @@ namespace Sb22.ScriptHelpers {
 			Vector3D target,
 			IEnumerable<IMyThrust> thrusters,
 			IMyShipController control,
-			float speed = float.PositiveInfinity,
+			float speed = 100f,
 			Vector3 velocity = default(Vector3),
 			float delay = 1f / 60f,
 			bool slow = true,
@@ -216,7 +216,7 @@ namespace Sb22.ScriptHelpers {
 			// Sum maximum forwards/backwards force.
 			float brakeForce = 0f, accelForce = 0f;
 			foreach(IMyThrust thruster in thrusters) {
-				if(!thruster.Enabled) continue;
+				//if(!thruster.Enabled) continue;
 
 				/* 
 				 * Magnitude of dot product will be positive when the vectors are similar.
@@ -261,6 +261,8 @@ namespace Sb22.ScriptHelpers {
 
 			// Debug output current relevent variables.
 			if(echo != null) {
+				echo($"accell force: {accelForce}");
+				echo($"brake force: {brakeForce}");
 				echo($"project speed: {v0:N2}m/s");
 				echo(V0.ToString("N2"));
 				echo($"reject speed: {w0:N2}m/s");
@@ -274,7 +276,7 @@ namespace Sb22.ScriptHelpers {
 
 			// Apply thruster overrides.
 			foreach(IMyThrust thruster in thrusters) {
-				if(!thruster.Enabled) continue;
+				//if(!thruster.Enabled) continue;
 				bool overridden = false;
 
 				/* 
@@ -299,7 +301,9 @@ namespace Sb22.ScriptHelpers {
 				// Remember to disable override!
 				if(!overridden) {
 					thruster.ThrustOverride = 0f;
-					thruster.Enabled = false;
+					thruster.Enabled = true;
+				} else {
+					thruster.Enabled = true;
 				}
 
 				// Debug output thruster names and their overrides.

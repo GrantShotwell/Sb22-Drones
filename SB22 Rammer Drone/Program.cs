@@ -43,7 +43,7 @@ namespace IngameScript {
 		public Program() {
 
 			// Set update frequency.
-			Runtime.UpdateFrequency = UpdateFrequency.Update10;
+			Runtime.UpdateFrequency = UpdateFrequency.Update1;
 
 		}
 
@@ -97,11 +97,27 @@ namespace IngameScript {
 
 				// Get target entity.
 				MyDetectedEntityInfo target = turret.GetTargetedEntity();
+				Vector3D targetPosition = target.Position;
+
+				// Get information required to move.
+				Vector3D direction = control.GetPosition() - targetPosition;
+				direction.Normalize();
+				Quaternion rotation = Quaternion.CreateFromRotationMatrix(Me.CubeGrid.WorldMatrix);
+				Quaternion rotationTo = Quaternion.CreateFromForwardUp(direction, rotation.Up);
+
+				// Rotate ship to face target.
+				NavigationHelper.RotateTo(
+					grid: rotation,
+					target: rotationTo,
+					gyroscopes: Gyroscopes,
+					speed: 2f,
+					echo: Echo
+				);
 
 				// Move ship towards target.
 				NavigationHelper.MoveTo(
-					current: control.CurrentWaypoint.Coords,
-					target: target.Position,
+					current: control.GetPosition(),
+					target: targetPosition,
 					velocity: target.Velocity,
 					thrusters: Thrusters,
 					control: control,
