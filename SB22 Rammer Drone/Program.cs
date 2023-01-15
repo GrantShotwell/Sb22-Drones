@@ -27,18 +27,14 @@ namespace IngameScript {
 	/// </summary>
 	partial class Program : MyGridProgram {
 
-		double RerouteDistanceSquared { get; } = 25.0;
-		double TimeSinceLastReroute { get; set; } = 999.9;
-		double MinimumRerouteTime { get; } = 0.2;
-
 		string TurretName { get; } = "Drone Turret";
 		IMyLargeTurretBase Turret { get; set; }
 
 		string RemoteControlName { get; } = "Drone Remote Control";
 		IMyRemoteControl RemoteControl { get; set; }
 
-		List<IMyThrust> ForwardThrusters { get; } = new List<IMyThrust>();
-		List<IMyThrust> BackwardThrusters { get; } = new List<IMyThrust>();
+		List<IMyThrust> Thrusters { get; } = new List<IMyThrust>();
+		List<IMyGyro> Gyroscopes { get; } = new List<IMyGyro>();
 
 
 		/// <summary>
@@ -89,85 +85,42 @@ namespace IngameScript {
 
 			// Make proerties local.
 			// Done here and not before 'error checking'.
+			GetObjects();
 			IMyRemoteControl control = RemoteControl;
 			IMyLargeTurretBase turret = Turret;
 
 			// Navigation logic.
-			if(Turret.HasTarget) {
+			if(turret.HasTarget) {
 
-				Vector3D current = control.CurrentWaypoint.Coords;
-				MyDetectedEntityInfo target = turret.GetTargetedEntity();
-				Vector3D velocity = target.Velocity;
-
-				bool notWaitingForTime, notWaitingforDist = true;
-				double dist = -1;
-				if(
-					(notWaitingForTime = (TimeSinceLastReroute += Runtime.TimeSinceLastRun.TotalSeconds) > MinimumRerouteTime)
-					&& (notWaitingforDist = (dist = (current - target.Velocity + target.Position).LengthSquared()) > RerouteDistanceSquared)
-				) {
-
-					// Find where to aim.
-					Vector3D aim;
-					Vector3D position = control.GetPosition();
-					Vector3D distance = target.Position - position;
-
-					double d2 = distance.LengthSquared();
-					double d = Math.Sqrt(d2);
-					double v2 = velocity.LengthSquared();
-
-					if(v2 == 0.0) {
-						aim = target.Position;
-					} else {
-						double v = Math.Sqrt(v2);
-						double s = control.SpeedLimit;
-						double s2 = s * s;
-						double x2 = (distance + velocity).LengthSquared();
-						double cos_a = (v2 + d2 - x2) / (2 * v * d);
-						double cos2_a = cos_a * cos_a;
-						double t = d * (Math.Sqrt(v2 * cos2_a + 4 * s2 - 4 * v2) + v * cos_a) / (2 * (s2 - v2));
-						aim = double.IsNaN(t) ? current : velocity * t + target.Position;
-					}
-
-					// Tell remote control to go to the aim.
-					control.ClearWaypoints();
-					control.AddWaypoint(aim, "Aim");
-					TimeSinceLastReroute = 0;
-
-				}
-
-				// Enable autopilot.
-				Runtime.UpdateFrequency = UpdateFrequency.Update10;
-				control.SetCollisionAvoidance(false);
-				control.FlightMode = FlightMode.OneWay;
-				control.ControlThrusters = false;
-				control.ControlWheels = true;
-				control.HandBrake = false;
-				control.SetAutoPilotEnabled(true);
-
-				// Set thruster overrides.
-				SetThrusterOverrides(1.00f, 0.00f);
-
-				// Echo information.
+				// Echo current status.
 				Echo($"\nRamming target!");
-				if(!notWaitingForTime) Echo($"Reroute waiting for time ({TimeSinceLastReroute:N2}s).");
-				if(!notWaitingforDist) Echo($"Reroute waiting for distance ({Math.Sqrt(dist):N2}m).");
+
+				// Get target entity.
+				MyDetectedEntityInfo target = turret.GetTargetedEntity();
+
+				// Move ship towards target.
+				NavigationHelper.MoveTo(
+					current: control.CurrentWaypoint.Coords,
+					target: target.Position,
+					velocity: target.Velocity,
+					thrusters: Thrusters,
+					control: control,
+					slow: false,
+					echo: Echo
+				);
 
 			} else {
 
-				// Disable autopilot.
-				Runtime.UpdateFrequency = UpdateFrequency.Update100;
-				control.SetAutoPilotEnabled(false);
-				control.Direction = Base6Directions.Direction.Forward;
-
-				// Set thruster overrides.
-				UpdateThrusterCollections();
-				SetThrusterOverrides(0.00f, 0.00f);
-
-				// Echo information.
+				// Echo current status.
 				Echo("\nWaiting for target...");
 
 			}
 
+		}
+
+		public void GetObjects() {
+			GridTerminalSystem.GetBlocksOfType(Thrusters);
+			GridTerminalSystem.GetBlocksOfType(Gyroscopes);
 		}
 
 		/// <summary>
@@ -176,38 +129,6 @@ namespace IngameScript {
 		/// </summary>
 		public void Save() {
 			Storage = null;
-		}
-
-		void SetThrusterOverrides(float forwards, float backwards) {
-
-			// Set thruster overrides.
-			foreach(IMyThrust thruster in BackwardThrusters) thruster.ThrustOverridePercentage = backwards;
-			foreach(IMyThrust thruster in ForwardThrusters) thruster.ThrustOverridePercentage = forwards;
-
-			// Echo information.
-			Echo($"Thrusters count to {ForwardThrusters.Count} forwards and {BackwardThrusters.Count} backwards.");
-			Echo($"Overrides set to {forwards:P1}/{backwards:P1}.");
-
-		}
-
-		void UpdateThrusterCollections() {
-
-			// Get remote control.
-			var control = RemoteControl;
-			if(control == null) return;
-
-			// Find backward thrusters.
-			Base6Directions.Direction orientation = DirectionHelper.Apply(control.Orientation.Forward, control.Direction);
-			List<IMyThrust> backwardThrusters = BackwardThrusters;
-			GridTerminalSystem.GetBlocksOfType(backwardThrusters,
-				thruster => thruster.CubeGrid == Me.CubeGrid && thruster.Orientation.Forward == orientation);
-
-			// Find forward thrusters.
-			DirectionHelper.Invert(ref orientation);
-			List<IMyThrust> forwardThrusters = ForwardThrusters;
-			GridTerminalSystem.GetBlocksOfType(forwardThrusters,
-				thruster => thruster.CubeGrid == Me.CubeGrid && thruster.Orientation.Forward == orientation);
-
 		}
 
 	}

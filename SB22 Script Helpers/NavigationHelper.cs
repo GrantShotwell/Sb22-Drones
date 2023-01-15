@@ -37,12 +37,12 @@ namespace Sb22.ScriptHelpers {
 		/// <returns><see langword="true"/> if sitting on the target; <see langword="false"/> if still rotating.</returns>
 		/// <remarks>
 		/// <para>Will reach the desired rotation within 0.001π radians (0.18°).</para>
-		/// <para>Made by <see href="https://github.com/SonicBlue22">Grant Shotwell</see>.</para>
+		/// <para>Made by <see href="https://github.com/GrantShotwell">Grant Shotwell</see>.</para>
 		/// </remarks>
 		public static bool RotateTo(
 			Quaternion grid,
 			Quaternion target,
-			ICollection<IMyGyro> gyroscopes,
+			IEnumerable<IMyGyro> gyroscopes,
 			float speed = 1f,
 			Action<string> echo = null
 		) {
@@ -52,11 +52,6 @@ namespace Sb22.ScriptHelpers {
 			target.Normalize();
 			if(grid == Quaternion.Zero) return true;
 			grid.Normalize();
-
-			// Debug output 'not enough gyroscopes' warning.
-			if(echo != null && gyroscopes.Count < 2) {
-				echo("WARNING: At least two gyroscopes are required to properly rotate.");
-			}
 
 			// Debug output current quaternion angles.
 			if(echo != null) {
@@ -113,7 +108,9 @@ namespace Sb22.ScriptHelpers {
 			// Since there are two rotation vectors, switch between them each time.
 			bool axis = false;
 
+			int count = 0;
 			foreach(IMyGyro gyroscope in gyroscopes) {
+				count++;
 
 				// Get rotation vector (change the axis every loop).
 				Vector3 rotation = (axis = !axis) ? crossZ : crossY;
@@ -133,6 +130,11 @@ namespace Sb22.ScriptHelpers {
 
 			}
 
+			// Debug output 'not enough gyroscopes' warning.
+			if(echo != null && count < 2) {
+				echo("WARNING: At least two gyroscopes are required to properly rotate.");
+			}
+
 			return false;
 
 		}
@@ -147,6 +149,7 @@ namespace Sb22.ScriptHelpers {
 		/// <param name="speed">The max speed in meters per second to travel.</param>
 		/// <param name="velocity">The current velocity of <paramref name="target"/>. Magnitude should be sufficiently less than <paramref name="speed"/>.</param>
 		/// <param name="delay">The time in seconds between method calls. Default value is one game tick.</param>
+		/// <param name="slow">Reach the target at zero speed. Disable if you want to fly past the target (like for ramming).</param>
 		/// <param name="echo">An output for debugging.</param>
 		/// <returns><see langword="true"/> if sitting on the target with desired velocity; <see langword="false"/> if still adjusting and/or moving.</returns>
 		/// <remarks>
@@ -162,22 +165,23 @@ namespace Sb22.ScriptHelpers {
 		/// That way, the ship pilot can enable/disable backup hydrogen thrusters, for example, and not have them re-enabled by this method.
 		/// </para>
 		/// <para>
-		/// Made by <see href="https://github.com/SonicBlue22">Grant Shotwell</see>.
+		/// Made by <see href="https://github.com/GrantShotwell">Grant Shotwell</see>.
 		/// </para>
 		/// </remarks>
 		public static bool MoveTo(
 			Vector3D current,
 			Vector3D target,
-			ICollection<IMyThrust> thrusters,
+			IEnumerable<IMyThrust> thrusters,
 			IMyShipController control,
 			float speed = float.PositiveInfinity,
 			Vector3 velocity = default(Vector3),
 			float delay = 1f / 60f,
+			bool slow = true,
 			Action<string> echo = null
 		) {
 
-			// Local constant
-			float sitRadius = 0.5f;
+			// Radius movement script will aim for around the target.
+			const float SitRadius = 0.5f;
 
 			// Calculate displacement.
 			Vector3 S = target - current + velocity * delay;
@@ -203,7 +207,7 @@ namespace Sb22.ScriptHelpers {
 			Vector3 W = w0 < 0.001f ? Vector3.Zero : m * -W0 / delay;
 
 			// Do we need to sit?
-			if(velocity == Vector3.Zero && s < sitRadius) {
+			if(velocity == Vector3.Zero && s < SitRadius) {
 				echo?.Invoke("Sitting.");
 				RemoveOverride(thrusters);
 				return true;
@@ -242,7 +246,7 @@ namespace Sb22.ScriptHelpers {
 			float e = v0 * delay;
 
 			// Decide if we need to brake, accelerate, or wait.
-			bool brake = d > 0f && e > 0f && s <= d + e;
+			bool brake = slow && d > 0f && e > 0f && s <= d + e;
 			bool accel = !brake && (v0 < speed);
 			Vector3 F;
 
