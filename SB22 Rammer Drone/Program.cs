@@ -88,6 +88,7 @@ namespace IngameScript {
 
 
 			// Make proerties local.
+			// Done here and not before 'error checking'.
 			IMyRemoteControl control = RemoteControl;
 			IMyLargeTurretBase turret = Turret;
 

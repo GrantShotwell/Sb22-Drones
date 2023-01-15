@@ -84,14 +84,22 @@ namespace Sb22.ScriptHelpers {
 			bool sittingY = false;
 			float angleY = (float)Math.Acos(alignedY.Y / alignedY.Length());
 			Vector3 crossY = new Vector3(-alignedY.Z, 0f, +alignedY.X);
-			if(crossY.Normalize() > 0.001f) crossY *= angleY * speed;
-			else { crossY = Vector3D.Zero; sittingY = true; }
+			if(crossY.Normalize() > 0.001f) {
+				crossY *= angleY * speed;
+			} else {
+				crossY = Vector3D.Zero;
+				sittingY = true;
+			}
 
 			bool sittingZ = false;
 			float angleZ = (float)Math.Acos(alignedZ.Z / alignedZ.Length());
 			Vector3 crossZ = new Vector3(+alignedZ.Y, -alignedZ.X, 0f);
-			if(crossZ.Normalize() > 0.001f) crossZ *= angleZ * speed;
-			else { crossZ = Vector3.Zero; sittingZ = true; }
+			if(crossZ.Normalize() > 0.001f) {
+				crossZ *= angleZ * speed;
+			} else {
+				crossZ = Vector3.Zero;
+				sittingZ = true;
+			}
 
 			if(sittingY && sittingZ) return true;
 
@@ -191,9 +199,8 @@ namespace Sb22.ScriptHelpers {
 			Vector3 W0 = Vector3.Reject(linear, direction);
 			float w0 = W0.Length();
 			// Calculate the force needed to correct the 'off-target' velocity.
-			Vector3 W;
-			if(w0 < 0.001f) W = Vector3.Zero;
-			else W = m * -W0 / delay;
+			// Default to zero when below a low arbitrary theshold.
+			Vector3 W = w0 < 0.001f ? Vector3.Zero : m * -W0 / delay;
 
 			// Do we need to sit?
 			if(velocity == Vector3.Zero && s < sitRadius) {
@@ -207,7 +214,8 @@ namespace Sb22.ScriptHelpers {
 			foreach(IMyThrust thruster in thrusters) {
 				if(!thruster.Enabled) continue;
 
-				/* Magnitude of dot product will be positive when the vectors are similar.
+				/* 
+				 * Magnitude of dot product will be positive when the vectors are similar.
 				 * Magnitude will be negative when the vectors are otherwise opposite.
 				 */
 
@@ -265,7 +273,8 @@ namespace Sb22.ScriptHelpers {
 				if(!thruster.Enabled) continue;
 				bool overridden = false;
 
-				/* Magnitude of dot product is proportional magnutide of both vectors multiplied.
+				/* 
+				 * Magnitude of dot product is proportional magnutide of both vectors multiplied.
 				 * In this case, one of the vectors is a length of one.
 				 */
 
@@ -303,7 +312,7 @@ namespace Sb22.ScriptHelpers {
 		/// and disables their <see cref="IMyThrust.ThrustOverride"/>.
 		/// </summary>
 		/// <param name="thrusters"><see cref="IMyThrust"/> objects to disable override.</param>
-		public static void RemoveOverride(ICollection<IMyThrust> thrusters) {
+		public static void RemoveOverride(IEnumerable<IMyThrust> thrusters) {
 			foreach(IMyThrust thruster in thrusters) {
 				thruster.Enabled = true;
 				thruster.ThrustOverride = 0f;
