@@ -216,13 +216,13 @@ namespace Sb22.ScriptHelpers {
 			// Sum maximum forwards/backwards force.
 			float brakeForce = 0f, accelForce = 0f;
 			foreach(IMyThrust thruster in thrusters) {
-				//if(!thruster.Enabled) continue;
 
 				/* 
 				 * Magnitude of dot product will be positive when the vectors are similar.
 				 * Magnitude will be negative when the vectors are otherwise opposite.
 				 */
 
+				// Assume all thrusters in the collection can be used.
 				float thrust = Vector3.Dot(direction, thruster.WorldMatrix.Backward) * thruster.MaxEffectiveThrust;
 				if(thrust > 0) accelForce += thrust;
 				else brakeForce += -thrust;
@@ -276,7 +276,6 @@ namespace Sb22.ScriptHelpers {
 
 			// Apply thruster overrides.
 			foreach(IMyThrust thruster in thrusters) {
-				//if(!thruster.Enabled) continue;
 				bool overridden = false;
 
 				/* 
@@ -301,7 +300,7 @@ namespace Sb22.ScriptHelpers {
 				// Remember to disable override!
 				if(!overridden) {
 					thruster.ThrustOverride = 0f;
-					thruster.Enabled = true;
+					thruster.Enabled = false;
 				} else {
 					thruster.Enabled = true;
 				}
@@ -324,6 +323,12 @@ namespace Sb22.ScriptHelpers {
 			foreach(IMyThrust thruster in thrusters) {
 				thruster.Enabled = true;
 				thruster.ThrustOverride = 0f;
+			}
+		}
+
+		public static void RemoveOverride(IEnumerable<IMyGyro> gyroscopes) {
+			foreach(IMyGyro gyroscope in gyroscopes) {
+				gyroscope.GyroOverride = false;
 			}
 		}
 

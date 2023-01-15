@@ -80,7 +80,11 @@ namespace IngameScript {
 			}
 
 			// End of error checking.
-			if(errors) return;
+			if(errors) {
+				NavigationHelper.RemoveOverride(Thrusters);
+				NavigationHelper.RemoveOverride(Gyroscopes);
+				return;
+			}
 
 
 			// Make proerties local.
@@ -129,6 +133,8 @@ namespace IngameScript {
 
 				// Echo current status.
 				Echo("\nWaiting for target...");
+				NavigationHelper.RemoveOverride(Thrusters);
+				NavigationHelper.RemoveOverride(Gyroscopes);
 
 			}
 
