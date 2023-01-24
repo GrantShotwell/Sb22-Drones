@@ -12,6 +12,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)ConsoleHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DirectionHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)NavigationHelper.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ProgramSettings.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)RollingList.cs" />
   </ItemGroup>
 </Project>

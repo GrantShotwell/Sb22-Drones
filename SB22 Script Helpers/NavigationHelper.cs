@@ -65,7 +65,8 @@ namespace Sb22.ScriptHelpers {
 			Vector3 alignedY = q * new Vector3(0f, 1f, 0f);
 			Vector3 alignedZ = q * new Vector3(0f, 0f, 1f);
 
-			/* Gyroscopes don't use pitch, yaw, and roll. Instead, they take rotation vectors.
+			/* 
+			 * Gyroscopes don't use pitch, yaw, and roll. Instead, they take rotation vectors.
 			 * For each axis to align we need the cross product of current and target
 			 * with a length of rotation speed (directly proportional to angle).
 			 * 
@@ -300,9 +301,6 @@ namespace Sb22.ScriptHelpers {
 				// Remember to disable override!
 				if(!overridden) {
 					thruster.ThrustOverride = 0f;
-					thruster.Enabled = false;
-				} else {
-					thruster.Enabled = true;
 				}
 
 				// Debug output thruster names and their overrides.
@@ -321,7 +319,6 @@ namespace Sb22.ScriptHelpers {
 		/// <param name="thrusters"><see cref="IMyThrust"/> objects to disable override.</param>
 		public static void RemoveOverride(IEnumerable<IMyThrust> thrusters) {
 			foreach(IMyThrust thruster in thrusters) {
-				thruster.Enabled = true;
 				thruster.ThrustOverride = 0f;
 			}
 		}
